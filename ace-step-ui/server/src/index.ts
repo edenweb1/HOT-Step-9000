@@ -458,16 +458,27 @@ app.post('/api/shutdown', async (_req, res) => {
 
       // ── 5. Kill everything ──
       console.log(`[Shutdown] Killing ${pidsToKill.size} processes...`);
-      for (const pid of pidsToKill) {
-        try {
-          execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore', timeout: 5000 });
-        } catch { /* already dead */ }
+      
+      // We must avoid committing suicide before killing other windows.
+      // Easiest and safest way: pass ALL PIDs to a single detached taskkill command that outlives Node.
+      if (pidsToKill.size > 0) {
+        const pidArgs = Array.from(pidsToKill).map(pid => `/PID ${pid}`).join(' ');
+        
+        const { spawn } = await import('child_process');
+        
+        // Spawn detached taskkill so Node's death doesn't kill the taskkill process itself
+        const child = spawn('cmd', ['/c', `taskkill /F /T ${pidArgs}`], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true
+        });
+        child.unref();
       }
 
     } catch (e) {
       console.error('[Shutdown] Error during shutdown', e);
     }
-    // Exit this Express process last
+    // Exit this Express process last (if it isn't killed already)
     setTimeout(() => process.exit(0), 500);
   }, 300);
 });
