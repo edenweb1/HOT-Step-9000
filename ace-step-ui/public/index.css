@@ -1,0 +1,447 @@
+/* ========================================
+   CSS Variables - Design Tokens
+   用于统一管理主题颜色和常用样式
+   ======================================== */
+
+:root {
+  /* ===== 品牌色 ===== */
+  --color-primary: #ec4899;
+  --color-primary-hover: #db2777;
+  --color-primary-light: #f472b6;
+
+  /* ===== 背景色 - 浅色模式 ===== */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+
+  /* ===== 背景色 - 暗色模式 ===== */
+  --bg-primary-dark: #09090b;
+  --bg-secondary-dark: #121214;
+  --bg-tertiary-dark: #18181b;
+  --bg-hover-dark: #27272a;
+
+  /* ===== 文字色 - 浅色模式 ===== */
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-tertiary: #a1a1aa;
+
+  /* ===== 文字色 - 暗色模式 ===== */
+  --text-primary-dark: #fafafa;
+  --text-secondary-dark: #a1a1aa;
+  --text-tertiary-dark: #71717a;
+
+  /* ===== 边框色 - 浅色模式 ===== */
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+
+  /* ===== 边框色 - 暗色模式 ===== */
+  --border-primary-dark: #27272a;
+  --border-secondary-dark: #3f3f46;
+
+  /* ===== 语义色 ===== */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* ===== 间距 ===== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  /* ===== 圆角 ===== */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ===== 阴影 ===== */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+
+  /* ===== 布局宽度 ===== */
+  --sidebar-width: 240px;
+  --player-height: 80px;
+  --create-panel-width: 360px;
+  --right-sidebar-width: 360px;
+
+  /* ===== 过渡 ===== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ========================================
+   Base Styles - 基础样式
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ========================================
+   Scrollbar - 滚动条样式
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* ========================================
+   Utility Classes - 工具类
+   ======================================== */
+
+/* 隐藏滚动条 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 渐变文字 */
+.gradient-text {
+  background: linear-gradient(to right, #f472b6, #a78bfa, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 音乐条动画 */
+@keyframes music-bars {
+  0% { height: 20%; opacity: 0.5; }
+  50% { height: 100%; opacity: 1; }
+  100% { height: 20%; opacity: 0.5; }
+}
+
+.music-bar-anim {
+  animation: music-bars 1s ease-in-out infinite;
+}
+
+/* 抽屉动画 */
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.drawer-slide-in-left {
+  animation: slide-in-left 0.3s ease-out forwards;
+}
+
+.drawer-slide-out-left {
+  animation: slide-out-left 0.3s ease-in forwards;
+}
+
+.drawer-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+.drawer-slide-out-right {
+  animation: slide-out-right 0.3s ease-in forwards;
+}
+
+.drawer-backdrop-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.drawer-backdrop-out {
+  animation: fade-out 0.3s ease-in forwards;
+}
+
+/* ========================================
+   Component Base - 组件基础样式
+   ======================================== */
+
+/* 按钮基础 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dark .btn-secondary {
+  background: var(--bg-hover-dark);
+  color: var(--text-primary-dark);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.dark .btn-ghost {
+  color: var(--text-secondary-dark);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.dark .btn-ghost:hover:not(:disabled) {
+  background: var(--bg-hover-dark);
+}
+
+/* 输入框基础 */
+.input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.dark .input {
+  background: var(--bg-secondary-dark);
+  border-color: var(--border-primary-dark);
+  color: var(--text-primary-dark);
+}
+
+.dark .input:focus {
+  border-color: var(--border-secondary-dark);
+}
+
+.dark .input::placeholder {
+  color: var(--text-tertiary-dark);
+}
+
+/* 卡片基础 */
+.card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  padding: var(--spacing-lg);
+}
+
+.dark .card {
+  background: var(--bg-secondary-dark);
+  border-color: var(--border-primary-dark);
+}
+
+/* ========================================
+   Safe Area - 安全区域 (移动端适配)
+   ======================================== */
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.safe-area-inset-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.safe-area-inset-y {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-all {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* ========================================
+   Touch - 触摸交互
+   ======================================== */
+
+.touch-none {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+.touch-pan-x {
+  touch-action: pan-x;
+}
+
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+.tap-highlight-none {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+.overscroll-none {
+  overscroll-behavior: none;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+/* ========================================
+   Backdrop Blur - 背景模糊
+   ======================================== */
+
+.backdrop-blur-mobile {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-mobile-lg {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ========================================
+   Mobile Visibility - 移动端显示控制
+   ======================================== */
+
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .mobile-only {
+    display: block;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only-flex {
+    display: flex;
+  }
+
+  .mobile-only-inline {
+    display: inline;
+  }
+
+  .mobile-only-inline-flex {
+    display: inline-flex;
+  }
+}

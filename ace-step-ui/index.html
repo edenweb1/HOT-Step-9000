@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACE-Step UI - Local AI Music Generator</title>
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="ACE-Step UI - Local AI Music Generator" />
+    <meta name="description" content="Create AI music locally with ACE-Step UI. Free and open source music generation powered by ACE-Step 1.5." />
+    <meta name="keywords" content="AI music generator, ACE-Step, local AI, music generation, text to music, AI song generator" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="ACE-Step UI" />
+
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#ec4899" />
+    <meta name="application-name" content="ACE-Step UI" />
+    <meta name="apple-mobile-web-app-title" content="ACE-Step UI" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // 定义关键 CSS 变量，确保 Tailwind 能读取
+      document.documentElement.style.setProperty('--color-primary', '#ec4899');
+      document.documentElement.style.setProperty('--bg-primary-dark', '#09090b');
+      document.documentElement.style.setProperty('--bg-secondary-dark', '#121214');
+      document.documentElement.style.setProperty('--bg-tertiary-dark', '#18181b');
+      document.documentElement.style.setProperty('--bg-hover-dark', '#27272a');
+
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              /* Suno 主题色 */
+              suno: {
+                DEFAULT: '#09090b',
+                sidebar: '#000000',
+                panel: '#121214',
+                card: '#18181b',
+                hover: '#27272a',
+                border: '#27272a',
+              },
+
+              /* 语义化颜色 */
+              brand: {
+                DEFAULT: 'var(--color-primary)',
+                hover: 'var(--color-primary-hover)',
+                light: 'var(--color-primary-light)',
+              },
+
+              surface: {
+                primary: 'var(--bg-primary)',
+                secondary: 'var(--bg-secondary)',
+                tertiary: 'var(--bg-tertiary)',
+              },
+
+              'surface-dark': {
+                primary: 'var(--bg-primary-dark)',
+                secondary: 'var(--bg-secondary-dark)',
+                tertiary: 'var(--bg-tertiary-dark)',
+                hover: 'var(--bg-hover-dark)',
+              },
+
+              content: {
+                primary: 'var(--text-primary)',
+                secondary: 'var(--text-secondary)',
+                tertiary: 'var(--text-tertiary)',
+              },
+
+              'content-dark': {
+                primary: 'var(--text-primary-dark)',
+                secondary: 'var(--text-secondary-dark)',
+                tertiary: 'var(--text-tertiary-dark)',
+              },
+
+              border: {
+                primary: 'var(--border-primary)',
+                secondary: 'var(--border-secondary)',
+              },
+
+              'border-dark': {
+                primary: 'var(--border-primary-dark)',
+                secondary: 'var(--border-secondary-dark)',
+              },
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            animation: {
+              'gradient-x': 'gradient-x 15s ease infinite',
+            },
+            keyframes: {
+              'gradient-x': {
+                '0%, 100%': {
+                  'background-size': '200% 200%',
+                  'background-position': 'left center'
+                },
+                '50%': {
+                  'background-size': '200% 200%',
+                  'background-position': 'right center'
+                },
+              },
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+      :root {
+        --breakpoint-mobile: 768px;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+
+      /* ========================================
+         Select - 下拉框美化
+         ======================================== */
+      select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        /* 渐变色箭头 - 粉色到紫色 */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='arrowGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23ec4899'/%3E%3Cstop offset='100%25' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M6 9l6 6 6-6' stroke='url(%23arrowGrad)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 18px;
+        padding-right: 40px !important;
+      }
+
+      /* 聚焦时箭头动画 */
+      select:focus {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='arrowGradFocus' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f472b6'/%3E%3Cstop offset='100%25' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M6 9l6 6 6-6' stroke='url(%23arrowGradFocus)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+      }
+
+      /* 禁用状态 */
+      select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      select:hover:not(:disabled) {
+        border-color: #ec4899;
+      }
+
+      .dark select:hover:not(:disabled) {
+        border-color: #ec4899;
+      }
+
+      /* ========================================
+         Number Input - 数字输入框滚动条隐藏
+         ======================================== */
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      input[type="number"]:focus {
+        outline: none;
+      }
+
+      /* ========================================
+         Chevron Icon - 折叠箭头美化
+         ======================================== */
+      .chevron-icon {
+        transition: transform 0.2s ease;
+      }
+
+      .chevron-icon.rotated {
+        transform: rotate(180deg);
+      }
+
+      /* ========================================
+         Scrollbar - 隐藏滚动条工具类
+         ======================================== */
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-suno text-zinc-900 dark:text-white overflow-hidden transition-colors duration-300">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+import React from 'react';
+import { useI18n } from '../../context/I18nContext';
+
+interface TaskTypeSelectorProps {
+    taskType: string;
+    setTaskType: (val: string) => void;
+    audioTab: 'reference' | 'source';
+    setAudioTab: (val: 'reference' | 'source') => void;
+    useReferenceAudio: boolean;
+    selectedModel: string;
+}
+
+// Check if model is a pure base model (only base supports extract/lego/complete)
+const isBaseModel = (modelId: string): boolean => {
+    return modelId.includes('base');
+};
+
+// Task type descriptions
+const TASK_DESCRIPTIONS: Record<string, string> = {
+    text2music: 'taskDescText2music',
+    cover: 'taskDescCover',
+    repaint: 'taskDescRepaint',
+    extract: 'taskDescExtract',
+    lego: 'taskDescLego',
+    complete: 'taskDescComplete',
+    audio2audio: 'taskDescAudio2audio',
+};
+
+export const TaskTypeSelector: React.FC<TaskTypeSelectorProps> = ({
+    taskType,
+    setTaskType,
+    audioTab,
+    setAudioTab,
+    useReferenceAudio,
+    selectedModel
+}) => {
+    const { t } = useI18n();
+
+    const descKey = TASK_DESCRIPTIONS[taskType] || TASK_DESCRIPTIONS.text2music;
+
+    return (
+        <div className="bg-white dark:bg-suno-card rounded-xl border border-zinc-200 dark:border-white/5 overflow-hidden">
+            <div className="px-3 py-2.5 flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{t('taskType')}</span>
+                <select
+                    value={taskType}
+                    onChange={(e) => {
+                        setTaskType(e.target.value);
+                        if (['extract', 'lego', 'complete'].includes(e.target.value)) {
+                            // Extract/Lego/Complete always need source audio
+                            setAudioTab('source');
+                        } else if (e.target.value === 'text2music' && audioTab === 'source') {
+                            setAudioTab('reference');
+                        } else if (e.target.value !== 'text2music' && !useReferenceAudio) {
+                            setAudioTab('source');
+                        }
+                    }}
+                    className="bg-zinc-100 dark:bg-black/30 border border-zinc-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none focus:border-pink-500 dark:focus:border-pink-500 transition-colors cursor-pointer [&>option]:bg-white [&>option]:dark:bg-zinc-800 [&>option]:text-zinc-900 [&>option]:dark:text-white"
+                >
+                    <option value="text2music">{t('textToMusic')}</option>
+                    <option value="cover">{t('coverTask')}</option>
+                    <option value="repaint">{t('repaintTask')}</option>
+                    <option value="extract" disabled={!isBaseModel(selectedModel)}>{t('extractTask')}{!isBaseModel(selectedModel) ? ` (${t('requiresBaseModel')})` : ''}</option>
+                    <option value="lego" disabled={!isBaseModel(selectedModel)}>{t('legoTask')}{!isBaseModel(selectedModel) ? ` (${t('requiresBaseModel')})` : ''}</option>
+                    <option value="complete" disabled={!isBaseModel(selectedModel)}>{t('completeTask')}{!isBaseModel(selectedModel) ? ` (${t('requiresBaseModel')})` : ''}</option>
+                    <option value="audio2audio">{t('audio2audio')}</option>
+                </select>
+            </div>
+            <div className="px-3 pb-2.5 -mt-0.5">
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-snug">{t(descKey)}</p>
+            </div>
+        </div>
+    );
+};
+
+export default TaskTypeSelector;

@@ -1,0 +1,427 @@
+import React from 'react';
+import { Settings2, ChevronDown, Cpu, Dices, Hash } from 'lucide-react';
+import { useI18n } from '../../context/I18nContext';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { EditableSlider } from '../EditableSlider';
+import GuidanceSettingsAccordion from './GuidanceSettingsAccordion';
+import LmCotAccordion from './LmCotAccordion';
+import ExpertControlsAccordion from './ExpertControlsAccordion';
+
+type GuidanceMode = 'apg' | 'adg' | 'pag' | 'cfg_pp' | 'dynamic_cfg' | 'rescaled_cfg';
+
+interface GenerationSettingsAccordionProps {
+    isOpen: boolean;
+    onToggle: () => void;
+    // Batch / Bulk
+    batchSize: number;
+    onBatchSizeChange: (val: number) => void;
+    bulkCount: number;
+    onBulkCountChange: (val: number) => void;
+    // Seed
+    seed: number;
+    onSeedChange: (val: number) => void;
+    randomSeed: boolean;
+    onRandomSeedToggle: () => void;
+    // Shift
+    shift: number;
+    onShiftChange: (val: number) => void;
+    // Model type
+    isTurbo: boolean;
+    // Inference
+    inferenceSteps: number;
+    onInferenceStepsChange: (val: number) => void;
+    inferMethod: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4';
+    onInferMethodChange: (val: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4') => void;
+    scheduler: string;
+    onSchedulerChange: (val: string) => void;
+    // Audio Format
+    audioFormat: 'mp3' | 'flac' | 'wav' | 'opus';
+    onAudioFormatChange: (val: 'mp3' | 'flac' | 'wav' | 'opus') => void;
+    // Guidance
+    guidanceScale: number;
+    onGuidanceScaleChange: (val: number) => void;
+    guidanceMode: GuidanceMode;
+    onGuidanceModeChange: (mode: GuidanceMode) => void;
+    pagStart: number;
+    onPagStartChange: (val: number) => void;
+    pagEnd: number;
+    onPagEndChange: (val: number) => void;
+    pagScale: number;
+    onPagScaleChange: (val: number) => void;
+    cfgIntervalStart: number;
+    onCfgIntervalStartChange: (val: number) => void;
+    cfgIntervalEnd: number;
+    onCfgIntervalEndChange: (val: number) => void;
+    // LM / CoT
+    thinking: boolean;
+    onThinkingToggle: () => void;
+    loraLoaded: boolean;
+    lmBackend: 'pt' | 'vllm';
+    onLmBackendChange: (val: 'pt' | 'vllm') => void;
+    lmModel: string;
+    onLmModelChange: (val: string) => void;
+    lmTemperature: number;
+    onLmTemperatureChange: (val: number) => void;
+    lmCfgScale: number;
+    onLmCfgScaleChange: (val: number) => void;
+    lmTopK: number;
+    onLmTopKChange: (val: number) => void;
+    lmTopP: number;
+    onLmTopPChange: (val: number) => void;
+    lmRepetitionPenalty: number;
+    onLmRepetitionPenaltyChange: (val: number) => void;
+    lmNegativePrompt: string;
+    onLmNegativePromptChange: (val: string) => void;
+    allowLmBatch: boolean;
+    onAllowLmBatchToggle: () => void;
+    useCotMetas: boolean;
+    onUseCotMetasToggle: () => void;
+    useCotCaption: boolean;
+    onUseCotCaptionToggle: () => void;
+    useCotLanguage: boolean;
+    onUseCotLanguageToggle: () => void;
+    lmBatchChunkSize: number;
+    onLmBatchChunkSizeChange: (val: number) => void;
+    constrainedDecodingDebug: boolean;
+    onConstrainedDecodingDebugToggle: () => void;
+    isFormatCaption: boolean;
+    onIsFormatCaptionToggle: () => void;
+
+    // Expert Controls
+    uploadError: string | null;
+    audioCodes: string;
+    onAudioCodesChange: (val: string) => void;
+    instruction: string;
+    onInstructionChange: (val: string) => void;
+    customTimesteps: string;
+    onCustomTimestepsChange: (val: string) => void;
+    trackName: string;
+    onTrackNameChange: (val: string) => void;
+    completeTrackClasses: string;
+    onCompleteTrackClassesChange: (val: string) => void;
+    autogen: boolean;
+    onToggleAutogen: () => void;
+    getLrc: boolean;
+    onToggleGetLrc: () => void;
+}
+
+export const GenerationSettingsAccordion: React.FC<GenerationSettingsAccordionProps> = (props) => {
+    const { t } = useI18n();
+
+    const [showInferenceSettings, setShowInferenceSettings] = usePersistedState('acestep-showInferenceSettings', false);
+    const [showGuidancePanel, setShowGuidancePanel] = usePersistedState('acestep-showGuidancePanel', false);
+    const [showLmCot, setShowLmCot] = usePersistedState('ace-showCotSection', false);
+    const [showLmParams, setShowLmParams] = usePersistedState('acestep-showLmParams', false);
+    const [showExpert, setShowExpert] = usePersistedState('acestep-showExpertPanel', false);
+
+    const selectClass = "w-full bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-xl px-2 py-1.5 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-pink-500 dark:focus:border-pink-500 transition-colors cursor-pointer [&>option]:bg-white [&>option]:dark:bg-zinc-800 [&>option]:text-zinc-900 [&>option]:dark:text-white";
+
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={props.onToggle}
+                className={`w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-suno-card border border-zinc-200 dark:border-white/5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors ${props.isOpen ? 'rounded-t-xl rounded-b-none border-b-0' : 'rounded-xl'}`}
+            >
+                <span className="flex items-center gap-2">
+                    <Settings2 size={16} className="text-pink-500" />
+                    {t('generationSettings')}
+                </span>
+                <ChevronDown size={18} className={`text-pink-500 chevron-icon ${props.isOpen ? 'rotated' : ''}`} />
+            </button>
+
+            {props.isOpen && (
+                <div className="bg-white dark:bg-suno-card rounded-b-xl rounded-t-none border border-t-0 border-zinc-200 dark:border-white/5 p-4 space-y-5">
+
+                    {/* Batch Size */}
+                    <EditableSlider
+                        label={t('batchSize')}
+                        value={props.batchSize}
+                        min={1}
+                        max={8}
+                        step={1}
+                        onChange={props.onBatchSizeChange}
+                        helpText={t('numberOfVariations')}
+                        title={t('batchSizeTooltip')}
+                    />
+
+                    {/* Bulk Generate */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{t('bulkGenerate')}</label>
+                            <span className="text-xs font-mono text-zinc-900 dark:text-white bg-zinc-100 dark:bg-black/20 px-2 py-0.5 rounded">
+                                {props.bulkCount} {t(props.bulkCount === 1 ? 'job' : 'jobs')}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            {[1, 2, 3, 5, 10].map((count) => (
+                                <button
+                                    key={count}
+                                    type="button"
+                                    onClick={() => props.onBulkCountChange(count)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${props.bulkCount === count
+                                        ? 'bg-gradient-to-r from-orange-500 to-pink-600 text-white shadow-md'
+                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                        }`}
+                                >
+                                    {count}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-zinc-500">{t('queueMultipleJobs')}</p>
+                    </div>
+
+                    {/* Seed */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Dices size={14} className="text-zinc-500" />
+                                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400" title={t('seedTooltip')}>{t('seed')}</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={props.onRandomSeedToggle}
+                                className={`w-10 h-5 rounded-full flex items-center transition-colors duration-200 px-0.5 border border-zinc-200 dark:border-white/5 ${props.randomSeed ? 'bg-pink-600' : 'bg-zinc-300 dark:bg-black/40'}`}
+                            >
+                                <div className={`w-4 h-4 rounded-full bg-white transform transition-transform duration-200 shadow-sm ${props.randomSeed ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Hash size={14} className="text-zinc-500" />
+                            <input
+                                type="number"
+                                value={props.seed}
+                                onChange={(e) => props.onSeedChange(Number(e.target.value))}
+                                placeholder={t('enterFixedSeed')}
+                                disabled={props.randomSeed}
+                                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                                className={`flex-1 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-white focus:outline-none appearance-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${props.randomSeed ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            />
+                        </div>
+                        <p className="text-[10px] text-zinc-500">{props.randomSeed ? t('randomSeedRecommended') : t('fixedSeedReproducible')}</p>
+                    </div>
+
+                    {/* Shift */}
+                    <EditableSlider
+                        label={t('shift')}
+                        value={props.shift}
+                        min={1}
+                        max={5}
+                        step={0.1}
+                        onChange={props.onShiftChange}
+                        formatDisplay={(val) => val.toFixed(1)}
+                        helpText={props.isTurbo ? undefined : 'Controls how the model distributes denoising effort. Higher = more focus on structure, less on fine detail.'}
+                        title={'Timestep schedule warping factor. Turbo models are trained with shift=3.0; base/SFT models default to 1.0.'}
+                        disabled={props.isTurbo}
+                        disabledReason={props.isTurbo ? 'Locked to 3.0 — turbo models are trained with this value' : undefined}
+                    />
+
+                    {/* Inference Settings (nested accordion) */}
+                    <div>
+                        <button
+                            type="button"
+                            onClick={() => setShowInferenceSettings(!showInferenceSettings)}
+                            className={`w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-suno-card border border-zinc-200 dark:border-white/5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors ${showInferenceSettings ? 'rounded-t-xl rounded-b-none border-b-0' : 'rounded-xl'}`}
+                        >
+                            <span className="flex items-center gap-2">
+                                <Cpu size={16} className="text-pink-500" />
+                                {t('inferenceSettings')}
+                            </span>
+                            <ChevronDown size={18} className={`text-pink-500 chevron-icon ${showInferenceSettings ? 'rotated' : ''}`} />
+                        </button>
+
+                        {showInferenceSettings && (
+                            <div className="bg-white dark:bg-suno-card rounded-b-xl rounded-t-none border border-t-0 border-zinc-200 dark:border-white/5 p-4 space-y-4">
+                                <EditableSlider
+                                    label={t('inferenceSteps')}
+                                    value={props.inferenceSteps}
+                                    min={4}
+                                    max={props.isTurbo ? 20 : 200}
+                                    step={1}
+                                    onChange={props.onInferenceStepsChange}
+                                    helpText={props.isTurbo ? 'Turbo models are optimised for 8 steps (max 20)' : t('moreStepsBetterQuality')}
+                                    title={t('inferenceStepsTooltip')}
+                                />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{t('audioFormat')}</label>
+                                        <select value={props.audioFormat} onChange={(e) => props.onAudioFormatChange(e.target.value as 'mp3' | 'flac' | 'wav' | 'opus')} className={selectClass}>
+                                            <option value="mp3" title={t('audioFormatMp3Desc')}>{t('mp3Smaller')}</option>
+                                            <option value="flac" title={t('audioFormatFlacDesc')}>{t('flacLossless')}</option>
+                                            <option value="wav" title={t('audioFormatWavDesc')}>WAV</option>
+                                            <option value="opus" title={t('audioFormatOpusDesc')}>Opus</option>
+                                        </select>
+                                        <p className="text-[10px] leading-tight text-zinc-500 dark:text-zinc-500">
+                                            {t(({ mp3: 'audioFormatMp3Desc', flac: 'audioFormatFlacDesc', wav: 'audioFormatWavDesc', opus: 'audioFormatOpusDesc' } as const)[props.audioFormat])}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{t('inferMethod')}</label>
+                                        <select value={props.inferMethod} onChange={(e) => props.onInferMethodChange(e.target.value as 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4')} className={selectClass}>
+                                            <option value="ode" title={t('solverEulerDesc')}>{t('solverEuler')}</option>
+                                            <option value="heun" title={t('solverHeunDesc')}>{t('solverHeun')}</option>
+                                            <option value="dpm2m" title={t('solverDpm2mDesc')}>{t('solverDpm2m')}</option>
+                                            <option value="rk4" title={t('solverRk4Desc')}>{t('solverRk4')}</option>
+                                        </select>
+                                        <p className="text-[10px] leading-tight text-zinc-500 dark:text-zinc-500">
+                                            {t(({ ode: 'solverEulerDesc', euler: 'solverEulerDesc', heun: 'solverHeunDesc', dpm2m: 'solverDpm2mDesc', rk4: 'solverRk4Desc' } as const)[props.inferMethod])}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="col-span-2 grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{t('scheduler')}</label>
+                                        <select value={props.scheduler.startsWith('composite') ? 'composite' : props.scheduler} onChange={(e) => {
+                                            if (e.target.value === 'composite') {
+                                                props.onSchedulerChange('composite:bong_tangent+linear:0.5:0.5');
+                                            } else {
+                                                props.onSchedulerChange(e.target.value);
+                                            }
+                                        }} className={selectClass}>
+                                            <option value="linear" title={t('schedulerLinearDesc')}>Linear</option>
+                                            <option value="ddim_uniform" title={t('schedulerDdimDesc')}>DDIM Uniform</option>
+                                            <option value="sgm_uniform" title={t('schedulerSgmDesc')}>SGM Uniform</option>
+                                            <option value="bong_tangent" title={t('schedulerBongDesc')}>Bong Tangent</option>
+                                            <option value="linear_quadratic" title={t('schedulerLinQuadDesc')}>Linear-Quadratic</option>
+                                            <option value="composite" title={t('schedulerCompositeDesc')}>Composite (2-Stage)</option>
+                                        </select>
+                                        <p className="text-[10px] leading-tight text-zinc-500 dark:text-zinc-500">
+                                            {props.scheduler.startsWith('composite') ? t('schedulerCompositeDesc') : t(({ linear: 'schedulerLinearDesc', ddim_uniform: 'schedulerDdimDesc', sgm_uniform: 'schedulerSgmDesc', bong_tangent: 'schedulerBongDesc', linear_quadratic: 'schedulerLinQuadDesc' } as Record<string, string>)[props.scheduler] || 'schedulerLinearDesc')}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* Composite Scheduler Sub-Controls */}
+                                {props.scheduler.startsWith('composite') && (() => {
+                                    const parts = props.scheduler.split(':');
+                                    const schedulerPair = (parts[1] || 'bong_tangent+linear').split('+');
+                                    const stageA = schedulerPair[0] || 'bong_tangent';
+                                    const stageB = schedulerPair[1] || 'linear';
+                                    const crossover = parseFloat(parts[2] || '0.5');
+                                    const split = parseFloat(parts[3] || '0.5');
+                                    const updateComposite = (a: string, b: string, c: number, s: number) => {
+                                        props.onSchedulerChange(`composite:${a}+${b}:${c.toFixed(2)}:${s.toFixed(2)}`);
+                                    };
+                                    const stageSelectClass = selectClass;
+                                    return (
+                                        <div className="col-span-2 rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-medium text-purple-400">{t('compositeStageA')}</label>
+                                                    <select value={stageA} onChange={(e) => updateComposite(e.target.value, stageB, crossover, split)} className={stageSelectClass}>
+                                                        <option value="linear">Linear</option>
+                                                        <option value="ddim_uniform">DDIM Uniform</option>
+                                                        <option value="sgm_uniform">SGM Uniform</option>
+                                                        <option value="bong_tangent">Bong Tangent</option>
+                                                        <option value="linear_quadratic">Linear-Quadratic</option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-medium text-purple-400">{t('compositeStageB')}</label>
+                                                    <select value={stageB} onChange={(e) => updateComposite(stageA, e.target.value, crossover, split)} className={stageSelectClass}>
+                                                        <option value="linear">Linear</option>
+                                                        <option value="ddim_uniform">DDIM Uniform</option>
+                                                        <option value="sgm_uniform">SGM Uniform</option>
+                                                        <option value="bong_tangent">Bong Tangent</option>
+                                                        <option value="linear_quadratic">Linear-Quadratic</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <EditableSlider label={t('compositeCrossover')} value={crossover} onChange={(v) => updateComposite(stageA, stageB, v, split)} min={0.1} max={0.9} step={0.05} tooltip={t('compositeCrossoverDesc')} />
+                                            <EditableSlider label={t('compositeSplit')} value={split} onChange={(v) => updateComposite(stageA, stageB, crossover, v)} min={0.1} max={0.9} step={0.05} tooltip={t('compositeSplitDesc')} />
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Guidance Settings */}
+                    <GuidanceSettingsAccordion
+                        isOpen={showGuidancePanel}
+                        onToggle={() => setShowGuidancePanel(!showGuidancePanel)}
+                        guidanceScale={props.guidanceScale}
+                        onGuidanceScaleChange={props.onGuidanceScaleChange}
+                        guidanceMode={props.guidanceMode}
+                        onGuidanceModeChange={props.onGuidanceModeChange}
+                        pagStart={props.pagStart}
+                        onPagStartChange={props.onPagStartChange}
+                        pagEnd={props.pagEnd}
+                        onPagEndChange={props.onPagEndChange}
+                        pagScale={props.pagScale}
+                        onPagScaleChange={props.onPagScaleChange}
+                        cfgIntervalStart={props.cfgIntervalStart}
+                        onCfgIntervalStartChange={props.onCfgIntervalStartChange}
+                        cfgIntervalEnd={props.cfgIntervalEnd}
+                        onCfgIntervalEndChange={props.onCfgIntervalEndChange}
+                        isTurbo={props.isTurbo}
+                    />
+
+                    {/* LM / CoT Settings */}
+                    <LmCotAccordion
+                        isOpen={showLmCot}
+                        onToggle={() => setShowLmCot(!showLmCot)}
+                        thinking={props.thinking}
+                        onThinkingToggle={props.onThinkingToggle}
+                        loraLoaded={props.loraLoaded}
+                        lmBackend={props.lmBackend}
+                        onLmBackendChange={props.onLmBackendChange}
+                        lmModel={props.lmModel}
+                        onLmModelChange={props.onLmModelChange}
+                        showLmParams={showLmParams}
+                        onToggleLmParams={() => setShowLmParams(!showLmParams)}
+                        lmTemperature={props.lmTemperature}
+                        onLmTemperatureChange={props.onLmTemperatureChange}
+                        lmCfgScale={props.lmCfgScale}
+                        onLmCfgScaleChange={props.onLmCfgScaleChange}
+                        lmTopK={props.lmTopK}
+                        onLmTopKChange={props.onLmTopKChange}
+                        lmTopP={props.lmTopP}
+                        onLmTopPChange={props.onLmTopPChange}
+                        lmRepetitionPenalty={props.lmRepetitionPenalty}
+                        onLmRepetitionPenaltyChange={props.onLmRepetitionPenaltyChange}
+                        lmNegativePrompt={props.lmNegativePrompt}
+                        onLmNegativePromptChange={props.onLmNegativePromptChange}
+                        allowLmBatch={props.allowLmBatch}
+                        onAllowLmBatchToggle={props.onAllowLmBatchToggle}
+                        useCotMetas={props.useCotMetas}
+                        onUseCotMetasToggle={props.onUseCotMetasToggle}
+                        useCotCaption={props.useCotCaption}
+                        onUseCotCaptionToggle={props.onUseCotCaptionToggle}
+                        useCotLanguage={props.useCotLanguage}
+                        onUseCotLanguageToggle={props.onUseCotLanguageToggle}
+                        lmBatchChunkSize={props.lmBatchChunkSize}
+                        onLmBatchChunkSizeChange={props.onLmBatchChunkSizeChange}
+                        constrainedDecodingDebug={props.constrainedDecodingDebug}
+                        onConstrainedDecodingDebugToggle={props.onConstrainedDecodingDebugToggle}
+                        isFormatCaption={props.isFormatCaption}
+                        onIsFormatCaptionToggle={props.onIsFormatCaptionToggle}
+
+                    />
+
+                    {/* Expert Controls */}
+                    <ExpertControlsAccordion
+                        isOpen={showExpert}
+                        onToggle={() => setShowExpert(!showExpert)}
+                        uploadError={props.uploadError}
+                        audioCodes={props.audioCodes}
+                        onAudioCodesChange={props.onAudioCodesChange}
+                        instruction={props.instruction}
+                        onInstructionChange={props.onInstructionChange}
+                        customTimesteps={props.customTimesteps}
+                        onCustomTimestepsChange={props.onCustomTimestepsChange}
+                        trackName={props.trackName}
+                        onTrackNameChange={props.onTrackNameChange}
+                        completeTrackClasses={props.completeTrackClasses}
+                        onCompleteTrackClassesChange={props.onCompleteTrackClassesChange}
+                        autogen={props.autogen}
+                        onToggleAutogen={props.onToggleAutogen}
+                        getLrc={props.getLrc}
+                        onToggleGetLrc={props.onToggleGetLrc}
+                    />
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default GenerationSettingsAccordion;
