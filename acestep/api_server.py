@@ -43,9 +43,6 @@ except ImportError:  # Optional dependency
     load_dotenv = None  # type: ignore
 
 from fastapi import FastAPI
-from acestep.api.train_api_service import (
-    initialize_training_state,
-)
 from acestep.api.jobs.store import _JobStore
 from acestep.api.log_capture import install_log_capture
 from acestep.api.route_setup import configure_api_routes
@@ -226,7 +223,6 @@ def create_app() -> FastAPI:
             avg_window=AVG_WINDOW,
             initial_avg_job_seconds=INITIAL_AVG_JOB_SECONDS,
             get_project_root=_get_project_root,
-            initialize_training_state_fn=initialize_training_state,
             ace_handler_cls=AceStepHandler,
             llm_handler_cls=LLMHandler,
         )

@@ -47,7 +47,6 @@ def initialize_lifespan_runtime(
     avg_window: int,
     initial_avg_job_seconds: float,
     get_project_root: Callable[[], str],
-    initialize_training_state_fn: Callable[[Any], None],
     ace_handler_cls: Callable[[], Any],
     llm_handler_cls: Callable[[], Any],
 ) -> LifespanRuntime:
@@ -128,7 +127,6 @@ def initialize_lifespan_runtime(
     app.state.executor = executor
     app.state.job_store = store
     app.state._python_executable = sys.executable
-    initialize_training_state_fn(app)
 
     app.state.temp_audio_dir = os.path.join(tmp_root, "api_audio")
     os.makedirs(app.state.temp_audio_dir, exist_ok=True)
