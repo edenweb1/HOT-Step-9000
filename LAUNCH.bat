@@ -9,24 +9,12 @@ chcp 65001 >nul 2>&1
 
 cd /d "%~dp0"
 
-REM ---- Optional: Check for updates ----
-echo.
-echo =============================================
-echo   Check for updates?
-echo =============================================
-echo.
-choice /C YN /T 10 /D N /M "Pull latest from GitHub? (auto-skips in 10s)"
-if errorlevel 2 goto skip_update
-echo.
-echo Updating repository...
-git pull origin qinglong 2>nul
-if errorlevel 1 (
-    echo   [!] Update failed or had conflicts. Continuing anyway.
-) else (
-    echo   Repository updated.
-)
-echo.
-:skip_update
+set "IS_RESTART=0"
+
+:start_system
+if exist update.lock del update.lock
+if exist boot.lock del boot.lock
+
 
 REM Tell ace-step-ui start.bat not to open a browser ??? our loading page handles that
 set "ACESTEP_NO_BROWSER=1"
@@ -34,8 +22,8 @@ set "ACESTEP_NO_BROWSER=1"
 echo.
 REM Read frontend port from .env
 set "VITE_PORT=3000"
-if exist "ace-step-ui\.env" (
-    for /f "tokens=2 delims==" %%a in ('findstr /b "VITE_PORT" "ace-step-ui\.env"') do set "VITE_PORT=%%a"
+if exist ".env" (
+    for /f "tokens=2 delims==" %%a in ('findstr /b "VITE_PORT" ".env"') do set "VITE_PORT=%%a"
 )
 
 REM Read current model selections from .env
@@ -76,7 +64,7 @@ echo =============================================
 echo.
 
 REM ---- Step 1: Write config and open loading page ----
-echo [1/5] Opening loading screen...
+echo [1/5] Writing config...
 (
 echo var VITE_PORT = '%VITE_PORT%';
 echo var AVAILABLE_MODELS = [%MODEL_LIST%];
@@ -84,7 +72,11 @@ echo var AVAILABLE_LM_MODELS = [%LM_MODEL_LIST%];
 echo var CURRENT_MODEL = '%CURRENT_MODEL%';
 echo var CURRENT_LM_MODEL = '%CURRENT_LM_MODEL%';
 ) > "%~dp0loading-config.js"
-start "" "%~dp0loading.html"
+
+if "%IS_RESTART%"=="0" (
+    echo [1.5] Opening loading screen...
+    start "" "%~dp0loading.html"
+)
 echo   Done.
 echo.
 
@@ -130,8 +122,52 @@ echo [2d/5] Checking Triton compatibility patch...
 echo   Done.
 echo.
 
-REM ---- Step 3: Set environment and start Python API server ----
-echo [3/5] Starting Python API server...
+REM ---- Step 3: Start UI servers (Express backend + Vite frontend) ----
+echo [3/5] Starting UI servers...
+
+REM Set ACE-Step paths for the Express backend
+set "ACESTEP_PATH=%~dp0"
+set "PYTHON_PATH=%~dp0.venv\Scripts\python.exe"
+
+REM Start Express backend
+start /min "ACE-Step UI Backend" cmd /k "cd /d "%~dp0ace-step-ui\server" && npm run dev"
+timeout /t 3 /nobreak >nul
+
+REM Start Vite frontend
+start /min "HOT-Step 9000 UI Frontend" cmd /k "set VITE_PORT=%VITE_PORT%&& cd /d "%~dp0ace-step-ui" && npm run dev"
+echo   Started (minimized windows).
+echo.
+
+REM ---- Step 4: Wait for UI selection ----
+echo [4/5] Waiting for user selection in loading screen...
+:wait_for_user
+if exist "update.lock" (
+    del "update.lock"
+    echo.
+    echo =============================================
+    echo   [UI Action] Update requested.
+    echo   Updating from GitHub...
+    echo =============================================
+    git pull origin main
+    echo.
+    echo Update complete. Restarting UI services...
+    set "IS_RESTART=1"
+    goto start_system
+)
+if exist "boot.lock" (
+    del "boot.lock"
+    echo.
+    echo =============================================
+    echo   [UI Action] Boot sequence initiated...
+    echo =============================================
+    goto start_python
+)
+timeout /t 1 /nobreak >nul
+goto wait_for_user
+
+:start_python
+REM ---- Step 5: Set environment and start Python API server ----
+echo [5/5] Starting Python API server...
 set "PYTHONPATH=%~dp0;%PYTHONPATH%"
 set "HF_HOME=huggingface"
 set "XFORMERS_FORCE_DISABLE_TRITON=1"
@@ -150,24 +186,6 @@ start /min "ACE-Step Python API" cmd /k "cd /d "%~dp0" && call .venv\Scripts\act
 echo   Started (minimized window).
 echo.
 
-REM ---- Brief pause to let Python start before UI tries to connect ----
-timeout /t 3 /nobreak >nul
-
-REM ---- Step 4: Start UI servers (Express backend + Vite frontend) ----
-echo [4/5] Starting UI servers...
-
-REM Set ACE-Step paths for the Express backend
-set "ACESTEP_PATH=%~dp0"
-set "PYTHON_PATH=%~dp0.venv\Scripts\python.exe"
-
-REM Start Express backend
-start /min "ACE-Step UI Backend" cmd /k "cd /d "%~dp0ace-step-ui\server" && npm run dev"
-timeout /t 3 /nobreak >nul
-
-REM Start Vite frontend
-start /min "ACE-Step UI Frontend" cmd /k "cd /d "%~dp0ace-step-ui" && npm run dev"
-echo   Started (minimized windows).
-echo.
 
 REM ---- Step 5: Done ----
 echo =============================================
