@@ -194,6 +194,7 @@ function AppContent() {
   const [reuseData, setReuseData] = useState<{ song: Song, timestamp: number } | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const altAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentSongIdRef = useRef<string | null>(null);
   const pendingSeekRef = useRef<number | null>(null);
   const playNextRef = useRef<() => void>(() => { });
@@ -799,12 +800,19 @@ function AppContent() {
     playNextRef.current = playNext;
   }, [playNext]);
 
-  // Audio Setup
+  // Audio Setup — dual elements for seamless M/O toggle
   useEffect(() => {
+    // Primary audio (mastered)
     audioRef.current = new Audio();
     audioRef.current.crossOrigin = "anonymous";
     const audio = audioRef.current;
     audio.volume = volume;
+
+    // Alternate audio (original) — plays simultaneously, muted until toggled
+    altAudioRef.current = new Audio();
+    altAudioRef.current.crossOrigin = "anonymous";
+    const altAudio = altAudioRef.current;
+    altAudio.volume = 0;
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
     const applyPendingSeek = () => {
@@ -815,6 +823,9 @@ function AppContent() {
         ? Math.min(Math.max(target, 0), audio.duration)
         : Math.max(target, 0);
       audio.currentTime = safeTarget;
+      if (altAudio.src && altAudio.readyState >= 1) {
+        altAudio.currentTime = safeTarget;
+      }
       setCurrentTime(safeTarget);
       pendingSeekRef.current = null;
     };
@@ -848,30 +859,46 @@ function AppContent() {
       setIsPlaying(false);
     };
 
+    // Alt audio time sync: keep alt in sync with primary via periodic correction
+    const altTimeUpdate = () => {
+      if (audio.readyState >= 1 && altAudio.readyState >= 1) {
+        const drift = Math.abs(audio.currentTime - altAudio.currentTime);
+        if (drift > 0.15) {
+          altAudio.currentTime = audio.currentTime;
+        }
+      }
+    };
+
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('progress', onProgress);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    altAudio.addEventListener('timeupdate', altTimeUpdate);
+    // Suppress alt audio ended (primary controls advancement)
+    altAudio.addEventListener('ended', () => { altAudio.pause(); });
 
     return () => {
       audio.pause();
+      altAudio.pause();
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('progress', onProgress);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      altAudio.removeEventListener('timeupdate', altTimeUpdate);
     };
   }, []);
 
-  // Handle Playback State
+  // Handle Playback State — dual-audio with volume-based M/O switching
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !currentSong?.audioUrl) return;
+    const altAudio = altAudioRef.current;
+    if (!audio || !altAudio || !currentSong?.audioUrl) return;
 
-    const playAudio = async () => {
+    const playBoth = async () => {
       try {
         await audio.play();
       } catch (err) {
@@ -883,49 +910,91 @@ function AppContent() {
           setIsPlaying(false);
         }
       }
+      // Play alt audio silently alongside primary (if loaded)
+      if (altAudio.src && altAudio.readyState >= 1) {
+        try { await altAudio.play(); } catch { /* alt is optional */ }
+      }
     };
 
-    const activeUrl = playingOriginal && currentSong.generationParams?.originalAudioUrl
-      ? currentSong.generationParams.originalAudioUrl
-      : currentSong.audioUrl;
-    
-    // Convert to absolute URL for accurate comparison
-    const targetUrl = new URL(activeUrl, window.location.href).href;
+    const pauseBoth = () => {
+      audio.pause();
+      if (altAudio.src) altAudio.pause();
+    };
 
-    if (currentSongIdRef.current !== currentSong.id || audio.src !== targetUrl) {
+    const masteredUrl = currentSong.audioUrl;
+    const originalUrl = currentSong.generationParams?.originalAudioUrl || null;
+    const isSongChange = currentSongIdRef.current !== currentSong.id;
+
+    if (isSongChange) {
+      // --- NEW SONG: load both sources, start from 0 ---
       currentSongIdRef.current = currentSong.id;
-      const wasPlaying = !audio.paused;
-      const savedTime = audio.currentTime;
 
-      audio.src = activeUrl;
-      // Connect audio analysis on first play
+      audio.src = masteredUrl;
       connectAudioAnalysis(audio);
       audio.load();
 
+      // Pre-load original into alt element (if available)
+      if (originalUrl) {
+        altAudio.src = originalUrl;
+        altAudio.load();
+      } else {
+        altAudio.removeAttribute('src');
+      }
+
+      // Set volumes: mastered audible, original silent (playingOriginal is reset on new song)
+      audio.volume = volume;
+      altAudio.volume = 0;
+
       const onCanPlay = () => {
-         audio.currentTime = savedTime;
-         if (isPlaying || wasPlaying) playAudio();
-         audio.removeEventListener('canplay', onCanPlay);
+        audio.currentTime = 0;
+        if (isPlaying) playBoth();
+        audio.removeEventListener('canplay', onCanPlay);
       };
       audio.addEventListener('canplay', onCanPlay);
+
+      // Start alt audio when it's ready too
+      if (originalUrl) {
+        const onAltCanPlay = () => {
+          // Sync alt to primary's position
+          if (audio.readyState >= 1) altAudio.currentTime = audio.currentTime;
+          if (isPlaying && !audio.paused) {
+            try { altAudio.play(); } catch { /* optional */ }
+          }
+          altAudio.removeEventListener('canplay', onAltCanPlay);
+        };
+        altAudio.addEventListener('canplay', onAltCanPlay);
+      }
     } else {
-      if (isPlaying) playAudio();
-      else audio.pause();
+      // --- SAME SONG: M/O toggle or play/pause ---
+      // Swap volumes for instant M/O switching (no src change!)
+      if (playingOriginal && originalUrl) {
+        audio.volume = 0;
+        altAudio.volume = volume;
+      } else {
+        audio.volume = volume;
+        altAudio.volume = 0;
+      }
+
+      if (isPlaying) playBoth();
+      else pauseBoth();
     }
   }, [currentSong, isPlaying, playingOriginal]);
 
-  // Handle Volume
+  // Handle Volume — apply to active element only
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
+    if (playingOriginal && altAudioRef.current?.src) {
+      if (audioRef.current) audioRef.current.volume = 0;
+      if (altAudioRef.current) altAudioRef.current.volume = volume;
+    } else {
+      if (audioRef.current) audioRef.current.volume = volume;
+      if (altAudioRef.current) altAudioRef.current.volume = 0;
     }
-  }, [volume]);
+  }, [volume, playingOriginal]);
 
-  // Handle Playback Rate
+  // Handle Playback Rate — apply to both elements so they stay in sync
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackRate;
-    }
+    if (audioRef.current) audioRef.current.playbackRate = playbackRate;
+    if (altAudioRef.current) altAudioRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
 
   // Helper to cleanup a job and check if all jobs are done
@@ -1282,6 +1351,11 @@ function AppContent() {
       return;
     }
     audio.currentTime = time;
+    // Keep alt audio in sync for seamless M/O toggle
+    const altAudio = altAudioRef.current;
+    if (altAudio?.src && altAudio.readyState >= 1) {
+      altAudio.currentTime = time;
+    }
     setCurrentTime(time);
   };
 
