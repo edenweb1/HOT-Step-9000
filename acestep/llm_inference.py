@@ -2691,6 +2691,27 @@ class LLMHandler:
                 # Get logits for the last position
                 next_token_logits = outputs.logits[:, -1, :]  # [batch_size*2, vocab_size]
 
+                # ── LM LoRA A/B logit diagnostic (first step only) ──
+                if step == 0 and self._lm_lora_loaded:
+                    try:
+                        from peft import PeftModel as _PM
+                        if isinstance(model, _PM):
+                            with_adapter_logits = next_token_logits[0, :20].clone()
+                            # Disable adapter and re-run
+                            with model.disable_adapter():
+                                outputs_base = self._forward_pass(model, generated_ids, model_kwargs, None, use_cache)
+                                base_logits = outputs_base.logits[:, -1, :][0, :20]
+                            diff = (with_adapter_logits - base_logits).abs().mean().item()
+                            max_diff = (with_adapter_logits - base_logits).abs().max().item()
+                            logger.info(
+                                f"[LM LoRA DIAG] Logit comparison (first 20 tokens): "
+                                f"mean_diff={diff:.6f}, max_diff={max_diff:.6f}, "
+                                f"ADAPTER {'HAS EFFECT' if diff > 1e-4 else 'NO EFFECT ⚠️'}"
+                            )
+                    except Exception as e:
+                        logger.warning(f"[LM LoRA DIAG] A/B test failed: {e}")
+                # ────────────────────────────────────────────────────
+
                 # Split conditional and unconditional logits
                 cond_logits = next_token_logits[cond_start_idx:cond_start_idx+batch_size]
                 uncond_logits = next_token_logits[uncond_start_idx:uncond_start_idx+batch_size]
