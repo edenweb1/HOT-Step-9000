@@ -272,17 +272,29 @@ class LLMHandler:
 
         try:
             from peft import PeftModel
+            from peft.tuners.lora import LoraLayer
             if isinstance(self.llm, PeftModel):
-                # PEFT scaling: set_adapter + scaling_factor
-                for name in self.llm.peft_config:
-                    self.llm.peft_config[name].lora_alpha = (
-                        self.llm.peft_config[name].r * scale
-                    )
-                # Force re-computation of scaling
-                self.llm.base_model.set_adapter(self.llm.active_adapter)
+                # Get original alpha/r from config for reference scaling
+                config = next(iter(self.llm.peft_config.values()))
+                original_scaling = config.lora_alpha / config.r  # e.g. 128/64 = 2.0
+
+                # New effective scaling = original * user_scale
+                new_scaling = original_scaling * scale
+
+                # Update the cached scaling on every LoRA layer
+                layers_updated = 0
+                for module in self.llm.modules():
+                    if isinstance(module, LoraLayer):
+                        for adapter_name in module.scaling:
+                            module.scaling[adapter_name] = new_scaling
+                            layers_updated += 1
+
+                logger.info(
+                    f"[LM LoRA] Scale set to {scale:.2f} "
+                    f"(effective scaling={new_scaling:.2f}, {layers_updated} layers updated)"
+                )
 
             self._lm_lora_scale = scale
-            logger.info(f"[LM LoRA] Scale set to {scale:.2f}")
             return f"\u2705 LM LoRA scale set to {scale:.2f}"
 
         except Exception as exc:
