@@ -88,7 +88,7 @@ export function LyricsLibrary({ setStyle, setLyrics, setBpm, setKeyScale, setTit
         });
     };
 
-    const applyTrack = (track: Track) => {
+    const applyTrack = (track: Track, artistName: string) => {
         if (track.caption) setStyle(track.caption);
         if (track.lyrics) setLyrics(track.lyrics);
         if (track.bpm > 0) setBpm(track.bpm);
@@ -101,7 +101,7 @@ export function LyricsLibrary({ setStyle, setLyrics, setBpm, setKeyScale, setTit
                 setKeyScale(track.keyscale);
             }
         }
-        if (track.title) setTitle(track.title);
+        if (track.title) setTitle(artistName ? `${artistName} - ${track.title}` : track.title);
         if (track.duration > 0) {
             // Add ~15% headroom so CoT has room to end the song naturally
             // Duration intentionally not set — CoT needs Auto duration
@@ -188,7 +188,7 @@ export function LyricsLibrary({ setStyle, setLyrics, setBpm, setKeyScale, setTit
                                                         {album.tracks.map(track => (
                                                             <button
                                                                 key={track.filename}
-                                                                onClick={() => applyTrack(track)}
+                                                                onClick={() => applyTrack(track, artist.name)}
                                                                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all ${appliedTrack === track.filename ? 'bg-green-500/20 text-green-300' : 'hover:bg-white/5'}`}
                                                                 title={`${track.caption}\n\nBPM: ${track.bpm} | Key: ${track.keyscale}${track.duration > 0 ? ` | ~${Math.floor(track.duration / 60)}:${String(track.duration % 60).padStart(2, '0')}` : ''}`}
                                                             >
