@@ -89,6 +89,12 @@ class LLMHandler:
         self._mlx_model = None
         self._mlx_model_path = None
 
+        # LM LoRA (PEFT adapter on the language model)
+        self._lm_lora_loaded = False
+        self._lm_lora_path = ""
+        self._lm_lora_scale = 1.0
+        self._lm_lora_prev_backend = None  # Tracks backend before auto-switch
+
     def unload(self) -> None:
         """Release LM weights/tokenizer and clear caches to free memory."""
         import gc
@@ -151,6 +157,137 @@ class LLMHandler:
             torch.xpu.empty_cache()
             torch.xpu.synchronize()
         print("[LLMHandler] Unloaded — VRAM cache flushed.")
+
+    # ── LM LoRA (PEFT adapter) methods ──────────────────────────────────
+
+    def load_lm_lora(self, adapter_path: str) -> str:
+        """Load a PEFT LoRA adapter onto the LLM.
+
+        If the current backend is vLLM/nano-vllm, auto-switches to PT backend
+        first (PEFT requires a HuggingFace model). The previous backend is
+        remembered so it can be restored on unload.
+        """
+        import gc
+
+        if self._lm_lora_loaded:
+            return f"\u26a0\ufe0f LM LoRA already loaded: {self._lm_lora_path}. Unload first."
+
+        if not os.path.exists(adapter_path):
+            return f"\u274c Adapter path not found: {adapter_path}"
+
+        # Validate adapter_config.json exists
+        config_path = os.path.join(adapter_path, "adapter_config.json")
+        if not os.path.isdir(adapter_path) or not os.path.isfile(config_path):
+            return f"\u274c Not a valid PEFT adapter directory (missing adapter_config.json): {adapter_path}"
+
+        # Auto-switch from vLLM to PT if needed
+        if self.llm_backend in ("vllm",) and self.llm is not None:
+            logger.info("[LM LoRA] Auto-switching from vLLM to PT backend for PEFT compatibility")
+            self._lm_lora_prev_backend = self.llm_backend
+            # Re-init with PT backend using the last init params
+            if self.last_init_params:
+                params = dict(self.last_init_params)
+                params["backend"] = "pt"
+                self.unload()
+                self.initialize_llm(**params)
+            else:
+                return "\u274c Cannot auto-switch backend: no previous init params available"
+
+        if self.llm is None or self.llm_backend != "pt":
+            return "\u274c LLM not loaded or not using PT backend. LM LoRA requires PT backend."
+
+        try:
+            from peft import PeftModel
+            logger.info(f"[LM LoRA] Loading adapter from {adapter_path}")
+            self.llm = PeftModel.from_pretrained(
+                self.llm,
+                adapter_path,
+                is_trainable=False,
+            )
+            self.llm.eval()
+            self._lm_lora_loaded = True
+            self._lm_lora_path = adapter_path
+            self._lm_lora_scale = 1.0
+
+            # Count adapter params
+            adapter_params = sum(p.numel() for p in self.llm.parameters() if p.requires_grad)
+            logger.info(f"[LM LoRA] Adapter loaded: {adapter_params:,} trainable params")
+            return f"\u2705 LM LoRA loaded from {os.path.basename(adapter_path)}"
+
+        except Exception as exc:
+            logger.error(f"[LM LoRA] Failed to load adapter: {exc}")
+            return f"\u274c Failed to load LM LoRA: {str(exc)}"
+
+    def unload_lm_lora(self) -> str:
+        """Unload the PEFT LoRA adapter and restore base LLM."""
+        import gc
+
+        if not self._lm_lora_loaded:
+            return "\u26a0\ufe0f No LM LoRA adapter is loaded"
+
+        try:
+            if self.llm is not None:
+                from peft import PeftModel
+                if isinstance(self.llm, PeftModel):
+                    self.llm = self.llm.unload()
+                    logger.info("[LM LoRA] Adapter unloaded, base model restored")
+
+            self._lm_lora_loaded = False
+            self._lm_lora_path = ""
+            self._lm_lora_scale = 1.0
+
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            # Optionally restore previous vLLM backend
+            if self._lm_lora_prev_backend == "vllm" and self.last_init_params:
+                logger.info("[LM LoRA] Restoring vLLM backend")
+                params = dict(self.last_init_params)
+                params["backend"] = "vllm"
+                self.unload()
+                self.initialize_llm(**params)
+                self._lm_lora_prev_backend = None
+
+            return "\u2705 LM LoRA unloaded"
+
+        except Exception as exc:
+            logger.error(f"[LM LoRA] Failed to unload adapter: {exc}")
+            return f"\u274c Failed to unload LM LoRA: {str(exc)}"
+
+    def set_lm_lora_scale(self, scale: float) -> str:
+        """Set the LoRA adapter scaling factor (0.0 = base only, 1.0 = full adapter)."""
+        if not self._lm_lora_loaded:
+            return "\u26a0\ufe0f No LM LoRA adapter is loaded"
+
+        try:
+            from peft import PeftModel
+            if isinstance(self.llm, PeftModel):
+                # PEFT scaling: set_adapter + scaling_factor
+                for name in self.llm.peft_config:
+                    self.llm.peft_config[name].lora_alpha = (
+                        self.llm.peft_config[name].r * scale
+                    )
+                # Force re-computation of scaling
+                self.llm.base_model.set_adapter(self.llm.active_adapter)
+
+            self._lm_lora_scale = scale
+            logger.info(f"[LM LoRA] Scale set to {scale:.2f}")
+            return f"\u2705 LM LoRA scale set to {scale:.2f}"
+
+        except Exception as exc:
+            logger.error(f"[LM LoRA] Failed to set scale: {exc}")
+            return f"\u274c Failed to set LM LoRA scale: {str(exc)}"
+
+    def get_lm_lora_status(self) -> dict:
+        """Return current LM LoRA adapter state."""
+        return {
+            "loaded": self._lm_lora_loaded,
+            "lm_lora_path": self._lm_lora_path,
+            "scale": self._lm_lora_scale,
+            "backend": self.llm_backend,
+            "auto_switched": self._lm_lora_prev_backend is not None,
+        }
 
     def _cleanup_torch_distributed_state(self) -> None:
         """Destroy default torch distributed process group when already initialized."""

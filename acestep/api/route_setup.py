@@ -13,6 +13,7 @@ from acestep.api.http.audio_route import register_audio_route
 from acestep.api.http.cancel_route import register_cancel_route
 from acestep.api.http.enhance_routes import register_enhance_routes
 from acestep.api.http.lora_routes import register_lora_routes
+from acestep.api.http.lm_lora_routes import register_lm_lora_routes
 from acestep.api.http.model_service_routes import register_model_service_routes
 from acestep.api.http.model_switch_routes import register_model_switch_routes
 from acestep.api.http.query_result_route import register_query_result_route
@@ -106,6 +107,12 @@ def configure_api_routes(
         verify_api_key=verify_api_key,
         wrap_response=wrap_response,
         get_project_root=get_project_root,
+    )
+
+    register_lm_lora_routes(
+        app=app,
+        verify_api_key=verify_api_key,
+        wrap_response=wrap_response,
     )
 
     register_reinitialize_route(
