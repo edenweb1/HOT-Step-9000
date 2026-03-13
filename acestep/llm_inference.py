@@ -2661,7 +2661,20 @@ class LLMHandler:
             if is_peft:
                 active = getattr(model, 'active_adapter', 'unknown')
                 configs = {n: f"r={c.r}, alpha={c.lora_alpha}" for n, c in model.peft_config.items()}
-                logger.info(f"[LM LoRA DIAG] PEFT active: adapter={active}, configs={configs}")
+                # Get actual layer scaling from first LoRA layer
+                layer_scaling = "?"
+                try:
+                    from peft.tuners.lora import LoraLayer as _LL
+                    for m in model.modules():
+                        if isinstance(m, _LL) and hasattr(m, 'scaling'):
+                            layer_scaling = next(iter(m.scaling.values()))
+                            break
+                except Exception:
+                    layer_scaling = "import_failed"
+                logger.info(
+                    f"[LM LoRA DIAG] PEFT active: adapter={active}, configs={configs}, "
+                    f"layer_scaling={layer_scaling}, user_scale={self._lm_lora_scale}"
+                )
             else:
                 logger.info(f"[LM LoRA DIAG] No PEFT adapter — base model ({type(model).__name__})")
         except ImportError:
