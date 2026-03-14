@@ -73,6 +73,7 @@ from acestep.api.http.auth import (
     verify_token_from_request,
 )
 from acestep.api.http.release_task_audio_paths import (
+    add_allowed_audio_directory as _add_allowed_audio_directory,
     save_upload_to_temp as _save_upload_to_temp,
     validate_audio_path as _validate_audio_path,
 )
@@ -192,6 +193,12 @@ def create_app() -> FastAPI:
     # API Key authentication (from environment variable)
     api_key = os.getenv("ACESTEP_API_KEY", None)
     set_api_key(api_key)
+
+    # Register the Node.js frontend audio directory as a safe path for cover/reference uploads.
+    _ui_audio_dir = os.path.join(_get_project_root(), "ace-step-ui", "server", "public", "audio")
+    _add_allowed_audio_directory(_ui_audio_dir)
+    # Also allow audio from anywhere within the project tree (output dirs, etc.)
+    _add_allowed_audio_directory(_get_project_root())
 
     QUEUE_MAXSIZE = int(os.getenv("ACESTEP_QUEUE_MAXSIZE", "200"))
     WORKER_COUNT = int(os.getenv("ACESTEP_QUEUE_WORKERS", "1"))  # Single GPU recommended
