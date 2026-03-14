@@ -31,6 +31,8 @@ def build_generate_music_request(
 
     reference_audio = overrides.pop("reference_audio_path", None) or parser.str("reference_audio_path") or None
     src_audio = overrides.pop("src_audio_path", None) or parser.str("src_audio_path") or None
+    import logging
+    logging.getLogger("acestep").info(f"[COVER DEBUG] request_builder src_audio_path = '{src_audio}', reference_audio_path = '{reference_audio}'")
 
     track_classes = parser.get("track_classes")
     if track_classes is not None and isinstance(track_classes, str):

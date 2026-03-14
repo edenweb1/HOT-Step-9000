@@ -141,16 +141,23 @@ class IoAudioMixin:
             Normalized stereo 48kHz tensor, or ``None`` on error/empty input.
         """
         if audio_file is None:
+            logger.warning("[process_src_audio] audio_file is None, returning None")
             return None
+
+        import os
+        logger.info(f"[process_src_audio] Attempting to load: '{audio_file}'")
+        logger.info(f"[process_src_audio] File exists: {os.path.exists(audio_file)}")
+        logger.info(f"[process_src_audio] Absolute path: '{os.path.abspath(audio_file)}'")
 
         try:
             # Use soundfile instead of torchaudio to avoid torchcodec dependency
             audio_np, sr = sf.read(audio_file, dtype="float32")
+            logger.info(f"[process_src_audio] Loaded OK: shape={audio_np.shape}, sr={sr}, duration={audio_np.shape[0]/sr:.1f}s")
             if audio_np.ndim == 1:
                 audio = torch.from_numpy(audio_np).unsqueeze(0)
             else:
                 audio = torch.from_numpy(audio_np.T)
             return self._normalize_audio_to_stereo_48k(audio, sr)
-        except (OSError, RuntimeError, ValueError):
-            logger.exception("[process_src_audio] Error processing source audio")
+        except (OSError, RuntimeError, ValueError) as exc:
+            logger.exception(f"[process_src_audio] Error processing source audio: {exc}")
             return None
