@@ -213,12 +213,27 @@ def run_blocking_generate(
             log_fn=log_fn,
         )
 
+        # Compute actual audio duration from the generated file rather than
+        # using the user-specified duration param (which may differ in cover/repaint
+        # mode where the source audio dictates output length).
+        actual_audio_duration = prepared_inputs.audio_duration
+        if result and hasattr(result, 'audios') and result.audios:
+            first_audio_path = result.audios[0].get("path") if isinstance(result.audios[0], dict) else None
+            if first_audio_path and os.path.exists(first_audio_path):
+                try:
+                    import soundfile as sf
+                    info = sf.info(first_audio_path)
+                    actual_audio_duration = round(info.duration, 1)
+                    logger.info(f"[Duration] Actual audio duration: {actual_audio_duration}s (requested: {prepared_inputs.audio_duration}s)")
+                except Exception as e:
+                    logger.warning(f"[Duration] Could not probe audio duration: {e}")
+
         lm_model_name = os.getenv("ACESTEP_LM_MODEL_PATH", "acestep-5Hz-lm-0.6B")
         return build_generation_success_response(
             result=result,
             params=params,
             bpm=prepared_inputs.bpm,
-            audio_duration=prepared_inputs.audio_duration,
+            audio_duration=actual_audio_duration,
             key_scale=prepared_inputs.key_scale,
             time_signature=prepared_inputs.time_signature,
             original_prompt=prepared_inputs.original_prompt,
