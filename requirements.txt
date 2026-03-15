@@ -16,7 +16,9 @@ torchaudio==2.10.0+cu130; sys_platform != 'win32' and sys_platform != 'darwin'
 transformers>=4.51.0,<4.58.0
 diffusers
 
-scipy>=1.10.1
+scipy==1.15.1
+matchering==2.0.6
+omegaconf==2.3.0
 soundfile>=0.13.1
 loguru>=0.7.3
 einops>=0.8.1

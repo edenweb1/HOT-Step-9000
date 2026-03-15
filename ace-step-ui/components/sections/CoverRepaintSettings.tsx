@@ -36,6 +36,10 @@ interface CoverRepaintSettingsProps {
     setShowCoverSettings: (val: boolean) => void;
     showOutputProcessing: boolean;
     setShowOutputProcessing: (val: boolean) => void;
+    masteringParams?: any;
+    setMasteringParams?: (params: any) => void;
+    onUploadMatcheringRef?: (file: File) => Promise<string>;
+    isUploadingMatchering?: boolean;
 }
 
 export const CoverRepaintSettings: React.FC<CoverRepaintSettingsProps> = ({
@@ -70,7 +74,11 @@ export const CoverRepaintSettings: React.FC<CoverRepaintSettingsProps> = ({
     showCoverSettings,
     setShowCoverSettings,
     showOutputProcessing,
-    setShowOutputProcessing
+    setShowOutputProcessing,
+    masteringParams,
+    setMasteringParams,
+    onUploadMatcheringRef,
+    isUploadingMatchering
 }) => {
     const { t } = useI18n();
 
@@ -258,6 +266,72 @@ export const CoverRepaintSettings: React.FC<CoverRepaintSettingsProps> = ({
                                 </button>
                             </div>
                         </div>
+
+                        {/* Mastering Method Selection */}
+                        {autoMaster && (
+                            <div className="space-y-3 p-3 bg-zinc-50 dark:bg-black/20 rounded-lg border border-zinc-200 dark:border-white/5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Mastering Method</span>
+                                    <div className="flex bg-zinc-200 dark:bg-zinc-800 rounded-lg p-0.5">
+                                        <button
+                                            onClick={() => setMasteringParams?.({ ...(masteringParams || {}), mode: 'builtin' })}
+                                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${(!masteringParams?.mode || masteringParams.mode === 'builtin') ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                                        >
+                                            Built-in
+                                        </button>
+                                        <button
+                                            onClick={() => setMasteringParams?.({ ...(masteringParams || {}), mode: 'matchering' })}
+                                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${masteringParams?.mode === 'matchering' ? 'bg-white dark:bg-zinc-600 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                                        >
+                                            Matchering
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {masteringParams?.mode === 'matchering' && (
+                                    <div className="space-y-2">
+                                        <div className="text-[10px] text-zinc-500">
+                                            Matchering requires a reference audio file to analyze and match the EQ/loudness characteristics.
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="file"
+                                                accept="audio/*"
+                                                id="matchering-upload"
+                                                className="hidden"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file && onUploadMatcheringRef) {
+                                                        try {
+                                                            const url = await onUploadMatcheringRef(file);
+                                                            setMasteringParams?.({ ...(masteringParams || {}), reference_file: url, reference_name: file.name });
+                                                        } catch (err) {
+                                                            console.error('Failed to upload matchering ref:', err);
+                                                        }
+                                                    }
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                            <label
+                                                htmlFor="matchering-upload"
+                                                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border cursor-pointer transition-colors ${isUploadingMatchering ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border-zinc-200 dark:border-white/10 cursor-wait' : 'bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-white/10 hover:border-pink-300 dark:hover:border-pink-500/50 hover:text-pink-600 dark:hover:text-pink-400'}`}
+                                            >
+                                                {isUploadingMatchering ? (
+                                                    <><span className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" /> Uploading...</>
+                                                ) : (
+                                                    <>Upload Reference</>
+                                                )}
+                                            </label>
+                                            {masteringParams?.reference_file && (
+                                                <div className="flex-1 truncate text-xs text-pink-600 dark:text-pink-400 font-medium">
+                                                    Selected: {masteringParams?.reference_name || 'Audio File'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Normalization toggle */}
                         <div className="flex items-center justify-between py-1">

@@ -33,6 +33,9 @@ interface StyleSectionProps {
     bpm?: number;
     keyScale?: string;
     timeSignature?: string;
+    /** Effective values after Cover Settings adjustments (tempo scale / pitch shift) — used only in the preview */
+    effectiveBpm?: number;
+    effectiveKeyScale?: string;
     /** Trigger word auto-injected from loaded LoKR adapter */
     triggerWord?: string;
 }
@@ -67,6 +70,8 @@ export const StyleSection: React.FC<StyleSectionProps> = ({
     bpm,
     keyScale,
     timeSignature,
+    effectiveBpm,
+    effectiveKeyScale,
     triggerWord,
 }) => {
     const { t } = useI18n();
@@ -316,8 +321,9 @@ export const StyleSection: React.FC<StyleSectionProps> = ({
                         const parts: string[] = [];
                         if (style.trim()) parts.push(style.trim());
                         const songParams: string[] = [];
-                        if (keyScale) songParams.push(keyScale);
-                        if (bpm && bpm > 0) songParams.push(`${bpm} BPM`);
+                        if (effectiveKeyScale ?? keyScale) songParams.push((effectiveKeyScale ?? keyScale)!);
+                        const previewBpm = effectiveBpm ?? bpm;
+                        if (previewBpm && previewBpm > 0) songParams.push(`${previewBpm} BPM`);
                         if (timeSignature) songParams.push(timeSignature);
                         if (songParams.length > 0) parts.push(songParams.join(', '));
                         const preview = parts.join(' · ');

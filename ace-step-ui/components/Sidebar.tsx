@@ -170,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 w-full rounded-xl flex items-center gap-3 transition-all duration-200 text-red-400 hover:text-red-300 hover:bg-red-500/10
                 ${isOpen ? 'px-3 py-2.5 justify-start' : 'aspect-square justify-center'}
               `}
-                title="Quit ACE-Step"
+                title="Quit HOT-Step 9000"
               >
                 <div className="flex-shrink-0"><Power size={20} /></div>
                 {isOpen && (

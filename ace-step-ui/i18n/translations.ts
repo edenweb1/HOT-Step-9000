@@ -18,7 +18,11 @@ export const translations = {
         settings: 'Settings',
 
         // Username Modal
-        welcomeTitle: 'Welcome to ACE-Step UI',
+        welcomeTitle: 'Welcome to HOT-Step 9000',
+        description: '🎵 ${song.style} • Create your own AI music free on HOT-Step 9000',
+        pageUrl: '${config.frontendUrl}/song/${song.id}',
+        appTitle: '${title} | HOT-Step 9000',
+        siteName: 'HOT-Step 9000',
         welcomeSubtitle: 'Enter your name to get started creating AI music',
         yourName: 'Your Name',
         enterYourName: 'Enter your name',
@@ -42,7 +46,7 @@ export const translations = {
         failedToDeleteSong: 'Failed to delete song',
 
         // Sidebar
-        aceStepUI: 'ACE-Step UI',
+        aceStepUI: 'HOT-Step 9000',
 
         // Common
         cancel: 'Cancel',
@@ -78,7 +82,7 @@ export const translations = {
         about: 'About',
         version: 'Version',
         localAIMusicGenerator: 'Local AI Music Generator',
-        poweredBy: 'Powered by ACE-Step 1.5. Open source and free to use.',
+        poweredBy: 'Powered by HOT-Step 9000. Open source and free to use.',
         createdBy: 'Created by Ambsd',
         localizedBy: 'Localization & Training by bdsqlsz',
         follow: 'Follow',
@@ -222,7 +226,7 @@ export const translations = {
         // CreatePanel - Model Status
         modelActive: '● Active',
         modelReady: '● Ready',
-        backendNotStarted: 'ACE-Step backend not started yet, using default model list',
+        backendNotStarted: 'HOT-Step 9000 backend not started yet, using default model list',
 
         // CreatePanel - Advanced
         randomSeed: 'Random Seed',
@@ -496,7 +500,7 @@ export const translations = {
         // CreatePanel - Actions
         generate: 'Generate',
         generating: 'Generating...',
-        createButton: 'Create',
+        createButton: 'Summon bangers',
         queueNext: 'Queue Next',
         formatLyrics: 'Format Lyrics',
         formatting: 'Formatting...',
@@ -771,7 +775,7 @@ export const translations = {
         shareViaEmail: 'Share via Email',
         copyLink: 'Copy Link',
         emailSubject: 'Check out this AI song',
-        emailBody: 'Hey!\n\nI created this AI-generated song and thought you\'d love it:\n\n"{title}" by {creator}\n{style}\n\nListen here: {url}\n\nMade with ACE-Step UI - free and open source local AI music generation!',
+        emailBody: 'Hey!\n\nI created this AI-generated song and thought you\'d love it:\n\n"{title}" by {creator}\n{style}\n\nListen here: {url}\n\nMade with HOT-Step 9000 - free and open source local AI music generation!',
 
         // Reference Modal
         referenceModalTitle: 'Style Reference',

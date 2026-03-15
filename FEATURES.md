@@ -857,19 +857,16 @@ Inspired by ComfyUI's multi-pass denoising workflows, the **Composite** schedule
 - **Stage A (Structure):** Handles the high-noise region (t=1 → crossover). Choose any scheduler for this phase — e.g., Bong Tangent for strong structural decisions.
 - **Stage B (Detail):** Handles the low-noise region (crossover → 0). Choose a different scheduler — e.g., Linear Quadratic for fine detail refinement.
 - **Crossover** (0.1–0.9): The timestep value where Stage A ends and Stage B begins. Default 0.5.
-- **Step Split** (0.1–0.9): Fraction of total steps allocated to Stage A. Default 0.5 = equal split.
-
-When "Composite (2-Stage)" is selected, a purple-bordered panel appears below the dropdown with Stage A/B dropdowns, Crossover slider, and Step Split slider. The composite config is encoded in the scheduler string (e.g., `composite:bong_tangent+linear_quadratic:0.50:0.60`) and flows through the entire pipeline transparently.
+- **Step Split** (0.1–0.9): Fraction of total steps allocated to Stage A. Default 0.5 = equal split
 
 ---
-
 
 ## Auto-Mastering & Mastering Console
 
 **Branch:** `qinglong`  
 **Status:** ✅ Merged
 
-Automatic post-generation mastering that applies a professional mastering profile to every generated track. The system includes an interactive console for real-time adjustments, persistent settings across sessions, and the ability to remaster previously generated tracks.
+Automatic post-generation mastering that applies a professional mastering profile to every generated track. The system includes an interactive console for real-time adjustments, a reference-based matching mode using the Matchering library, persistent settings across sessions, and the ability to remaster previously generated tracks.
 
 ### What's included
 
@@ -877,16 +874,16 @@ Automatic post-generation mastering that applies a professional mastering profil
 |------|-------------|
 | `acestep/core/audio/mastering.py` | `MasteringEngine` class — applies a 6-stage processing chain via pedalboard, maps frontend parameters to DSP values |
 | `acestep/core/audio/presets/*.json` | Bundled default presets (Preset 1, Preset 2) learned from professional reference mastering |
-| `acestep/inference.py` | `auto_master` and `mastering_params` in `GenerationParams`; mastering hook runs between normalization and audio save |
+| `acestep/inference.py` | `auto_master` and `mastering_params` in `GenerationParams`; mastering hook runs between normalization and audio save. Added Matchering branch for reference-based mastering. |
 | `acestep/api/http/mastering_routes.py` | **[NEW]** Provides the `/v1/mastering/remaster` endpoint to apply new settings to existing audio files |
 | `ace-step-ui/components/MasteringConsoleModal.tsx` | **[NEW]** Interactive console with sliders for 5-band EQ, Exciter Drive, Stereo Width, Threshold, Ratio, Gain, and Ceiling |
+| `ace-step-ui/components/sections/CoverRepaintSettings.tsx` | Interactive UI selector to choose between `Built-in` and `Matchering` mastering methods, along with an audio file uploader for the Matchering reference track. |
 | `ace-step-ui/components/DownloadModal.tsx` | Upgraded to allow downloading 'original', 'mastered', or 'both' versions of a track |
 | `ace-step-ui/App.tsx` | Global parameter persistence via `localStorage`, download version handling, console mounting |
 
-### Processing chain
+### Processing Chains
 
-The `MasteringEngine` applies 6 stages in professional gain-staging order:
-
+**Built-in Mode (`MasteringEngine`)** applies 6 stages in professional gain-staging order:
 1. **EQ shaping** — 5-Bands (Sub, Low, Mid, Presence, Air) 
 2. **Harmonic saturation** — Soft-clip exciter drive for subtle warmth
 3. **Stereo widening** — Mid/side processing to expand the stereo image
@@ -894,17 +891,25 @@ The `MasteringEngine` applies 6 stages in professional gain-staging order:
 5. **Loudness push + limiter** — Gain boost through a brick-wall limiter with an absolute output ceiling
 6. **Peak normalization** — Final safety normalize to -0.1 dBFS
 
+**Matchering Mode** uses [sergree/matchering](https://github.com/sergree/matchering) (GPLv3) to apply reference-based EQ and loudness matching:
+1. **Target Analysis** — Measures the frequency response and dynamics of your provided reference `.wav`/`.mp3`.
+2. **Source Analysis** — Measures the generated ACE-Step audio.
+3. **Matching** — Dynamically matches the EQ curve and overall RMS amplitude to match the target reference.
+
 ### How it works
 
-1. **Interactive Console**: Click the sliders icon on any generated track to open the Mastering Console. You can tweak all the DSP parameters in real-time. Hover over parameter labels to view tooltips explaining how they affect the sound and warning against clipping.
-2. **Persistent Settings**: Any tweaks made in the console are saved automatically to `localStorage` and act as your default global mastering profile for all future generated tracks.
-3. **Remastering**: Click **Remaster** in any track's dropdown menu. This opens the console loaded with the track's existing mastering settings. You can tweak the sliders, choose a different preset, and hit Apply — the Node/Python backend will re-run the `pedalboard` pipeline against the *original unmastered audio file* and create a new master, taking just milliseconds instead of regenerating the whole track.
-4. **Download Choice**: When downloading an auto-mastered track, the Download Modal offers a sub-selection: download the final **Mastered** version, the raw uncompressed **Original** generated by diffusion, or **Both**.
+1. **Mode Selection**: Open the Output Processing accordion and turn on Auto-Master. Select either **Built-in** or **Matchering**.
+2. **Built-in Interactive Console**: Click the sliders icon on any generated track to open the Mastering Console. You can tweak all the DSP parameters in real-time. Hover over parameter labels to view tooltips explaining how they affect the sound and warning against clipping.
+3. **Matchering Reference Upload**: When Matchering is selected, click **Upload Reference** to attach a target song. The generated track will be matched to this target's sonic profile transparently.
+4. **Persistent Settings**: Any tweaks made in the console or your selected mastering mode are saved automatically to `localStorage` and act as your default global mastering profile for all future generated tracks.
+5. **Remastering**: Click **Remaster** in any track's dropdown menu. This opens the console loaded with the track's existing mastering settings. You can tweak the sliders, choose a different preset, and hit Apply — the backend re-runs the pipeline against the *original unmastered audio file* and creates a new master instantly.
+6. **Download Choice**: When downloading an auto-mastered track, the Download Modal offers a sub-selection: download the final **Mastered** version, the raw uncompressed **Original** generated by diffusion, or **Both**.
 
 ### Dependencies
 
-- **Required:** `pedalboard` (already in requirements), `numpy`
-- The engine lazy-imports pedalboard on first use — zero overhead when disabled
+- **Required:** `pedalboard`, `numpy`, `matchering`
+- The built-in engine lazy-imports `pedalboard` on first use — zero overhead when disabled.
+- The Matchering engine leverages the new Python `matchering` library package dynamically if selected.
 
 ---
 

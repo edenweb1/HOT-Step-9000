@@ -303,6 +303,14 @@ export const SongList: React.FC<SongListProps> = ({
 
     return (
         <div className="relative flex-1 flex flex-col h-full bg-white dark:bg-black transition-colors duration-300">
+            {/* HOT-Step 9000 Empty State Background */}
+            {(!isPlaying || !currentSong) && !showVisualizerBg && (
+                <div 
+                    className="absolute inset-x-0 bottom-0 top-32 pointer-events-none opacity-[0.03] dark:opacity-10 dark:invert-0 invert transition-all duration-700 bg-center bg-no-repeat bg-contain"
+                    style={{ backgroundImage: 'url(/hotstep-bg.webp)' }}
+                />
+            )}
+            
             <div className="relative flex-1 overflow-y-auto custom-scrollbar p-6 pb-32">
                 {/* Background Visualizer — dimmed, behind content */}
                 {showVisualizerBg && isPlaying && (

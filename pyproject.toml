@@ -24,6 +24,7 @@ dependencies = [
     "diffusers",
 
     "scipy>=1.10.1",
+    "matchering==2.0.6",
     "soundfile>=0.13.1",
     "loguru>=0.7.3",
     "einops>=0.8.1",

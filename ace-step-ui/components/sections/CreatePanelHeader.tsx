@@ -56,8 +56,11 @@ export const CreatePanelHeader: React.FC<CreatePanelHeaderProps> = ({
         <>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">ACE-Step v1.5</span>
+                    <img 
+            src="/hotstep-logo-small.webp" 
+            alt="HOT-Step 9000 Logo" 
+            className="h-5 rounded opacity-90 object-contain hover:opacity-100 transition-opacity"
+          />
                 </div>
 
                 <div className="flex items-center gap-2">
