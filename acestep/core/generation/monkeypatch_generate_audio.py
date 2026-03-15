@@ -25,7 +25,11 @@ def apply_generate_audio_monkeypatch(model) -> bool:
 
     # Turbo models have a fundamentally different diffusion loop
     # (fixed timestep schedule, no solver/guidance registry). Skip them.
-    if "turbo" in module_name.lower() or "turbo" in class_name.lower():
+    # Use the config flag (authoritative) rather than module-name heuristics,
+    # because merged SFT+Turbo models share turbo's model code but should
+    # still receive the patched generate_audio for guidance/solver support.
+    is_turbo = getattr(getattr(model, "config", None), "is_turbo", False)
+    if is_turbo:
         logger.info(
             f"[monkeypatch] Skipping turbo model ({class_name}) — "
             "turbo has its own generate_audio"
