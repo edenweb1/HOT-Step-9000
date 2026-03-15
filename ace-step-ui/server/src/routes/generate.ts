@@ -290,7 +290,7 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
         // Latent and normalization controls apply to ALL task types (post-DiT, pre-VAE decode).
         latent_shift: params.latentShift ?? 0.0,
         latent_rescale: params.latentRescale ?? 1.0,
-        auto_master: params.autoMaster !== false,
+        ...(params.autoMaster !== undefined ? { auto_master: params.autoMaster } : {}),
         ...(params.masteringParams ? { mastering_params: params.masteringParams } : {}),
         enable_normalization: params.enableNormalization !== false,
         normalization_db: params.normalizationDb ?? -1.0,

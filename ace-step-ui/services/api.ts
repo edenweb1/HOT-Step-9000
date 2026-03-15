@@ -320,6 +320,8 @@ export interface GenerationParams {
   instruction?: string;
   audioCoverStrength?: number;
   coverNoiseStrength?: number;
+  autoMaster?: boolean;
+  masteringParams?: Record<string, any>;
   enableNormalization?: boolean;
   normalizationDb?: number;
   latentShift?: number;
