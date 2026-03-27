@@ -4,8 +4,9 @@ import {
   Music, Users, Disc3, FileText, Sparkles, ChevronRight, ChevronDown,
   Plus, Trash2, Download, RefreshCw, Loader2, Search, AlertTriangle, X, Wand2, Play, Settings2, Save,
 } from 'lucide-react';
-import { lireekApi, Artist, LyricsSet, Profile, Generation, SongLyric, AlbumPreset } from '../../services/lyricStudioApi';
+import { lireekApi, Artist, LyricsSet, Profile, Generation, SongLyric, AlbumPreset, streamBuildProfile, streamGenerate, streamRefine, skipThinking } from '../../services/lyricStudioApi';
 import { TripleProviderSelector, ModelSelections, loadSelections, saveSelections } from './ProviderSelector';
+import { StreamingPanel } from './StreamingPanel';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,11 @@ export const LyricStudio: React.FC = () => {
   // Action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // ── Streaming state ─────────────────────────────────────────────────
+  const [streamText, setStreamText] = useState('');
+  const [streamPhase, setStreamPhase] = useState('');
+  const [streamDone, setStreamDone] = useState(false);
+  const [streamVisible, setStreamVisible] = useState(false);
 
   // Album presets
   const [presets, setPresets] = useState<Record<number, AlbumPreset | null>>({});
@@ -156,48 +162,88 @@ export const LyricStudio: React.FC = () => {
     }
   };
 
+  const resetStream = () => {
+    setStreamText('');
+    setStreamPhase('');
+    setStreamDone(false);
+    setStreamVisible(true);
+  };
+
   const handleBuildProfile = async (lyricsSetId: number) => {
     setActionLoading(`profile-${lyricsSetId}`);
+    resetStream();
     try {
       const { provider, model } = modelSelections.profiling;
-      await lireekApi.buildProfile(lyricsSetId, { provider, model: model || undefined });
-      showToast('Profile built successfully');
-      await loadAll();
+      await streamBuildProfile(lyricsSetId, { provider, model: model || undefined }, {
+        onChunk: (text) => setStreamText(prev => prev + text),
+        onPhase: (phase) => {
+          setStreamPhase(phase);
+          setStreamText(prev => prev + `\n--- ${phase} ---\n`);
+        },
+        onResult: () => {
+          showToast('Profile built successfully');
+          loadAll();
+        },
+        onError: (msg) => showToast(`Profile build failed: ${msg}`),
+      });
     } catch (err) {
       showToast(`Profile build failed: ${(err as Error).message}`);
     } finally {
+      setStreamDone(true);
       setActionLoading(null);
     }
   };
 
   const handleGenerate = async (profileId: number) => {
     setActionLoading(`generate-${profileId}`);
+    resetStream();
     try {
       const { provider, model } = modelSelections.generation;
-      await lireekApi.generateLyrics(profileId, {
+      await streamGenerate(profileId, {
         profile_id: profileId,
         provider,
         model: model || undefined,
+      }, {
+        onChunk: (text) => setStreamText(prev => prev + text),
+        onPhase: (phase) => {
+          setStreamPhase(phase);
+          setStreamText(prev => prev + `\n--- ${phase} ---\n`);
+        },
+        onResult: () => {
+          showToast('Lyrics generated successfully');
+          loadAll();
+        },
+        onError: (msg) => showToast(`Generation failed: ${msg}`),
       });
-      showToast('Lyrics generated successfully');
-      await loadAll();
     } catch (err) {
       showToast(`Generation failed: ${(err as Error).message}`);
     } finally {
+      setStreamDone(true);
       setActionLoading(null);
     }
   };
 
   const handleRefine = async (generationId: number) => {
     setActionLoading(`refine-${generationId}`);
+    resetStream();
     try {
       const { provider, model } = modelSelections.refinement;
-      await lireekApi.refineLyrics(generationId, { provider, model: model || undefined });
-      showToast('Lyrics refined successfully');
-      await loadAll();
+      await streamRefine(generationId, { provider, model: model || undefined }, {
+        onChunk: (text) => setStreamText(prev => prev + text),
+        onPhase: (phase) => {
+          setStreamPhase(phase);
+          setStreamText(prev => prev + `\n--- ${phase} ---\n`);
+        },
+        onResult: () => {
+          showToast('Lyrics refined successfully');
+          loadAll();
+        },
+        onError: (msg) => showToast(`Refinement failed: ${msg}`),
+      });
     } catch (err) {
       showToast(`Refinement failed: ${(err as Error).message}`);
     } finally {
+      setStreamDone(true);
       setActionLoading(null);
     }
   };
@@ -570,6 +616,17 @@ export const LyricStudio: React.FC = () => {
 
       {/* ── Right Panel: Detail View ─────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto scrollbar-hide">
+        {/* LLM Streaming Output */}
+        <div className="p-4 pb-0">
+          <StreamingPanel
+            visible={streamVisible}
+            streamText={streamText}
+            phase={streamPhase}
+            done={streamDone}
+            onSkipThinking={skipThinking}
+          />
+        </div>
+
         {selectedItem?.type === 'fetch' && (
           <FetchPanel
             fetchArtist={fetchArtist}

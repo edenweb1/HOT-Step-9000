@@ -224,3 +224,83 @@ export const lireekApi = {
   }): Promise<{ job_id: string }> =>
     api('/api/generate', { method: 'POST', body: params }),
 };
+
+// ── SSE Streaming ─────────────────────────────────────────────────────────
+
+export interface StreamCallbacks {
+  onChunk?: (text: string) => void;
+  onPhase?: (phase: string) => void;
+  onResult?: (data: any) => void;
+  onError?: (message: string) => void;
+}
+
+async function consumeSSE(url: string, body: any, callbacks: StreamCallbacks): Promise<void> {
+  const resp = await fetch(`${API_BASE}${url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'include',
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(text || `HTTP ${resp.status}`);
+  }
+
+  const reader = resp.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const jsonStr = trimmed.slice(6).trim();
+      if (!jsonStr) continue;
+
+      try {
+        const event = JSON.parse(jsonStr);
+        switch (event.type) {
+          case 'chunk': callbacks.onChunk?.(event.text); break;
+          case 'phase': callbacks.onPhase?.(event.text); break;
+          case 'result': callbacks.onResult?.(event.data); break;
+          case 'error': callbacks.onError?.(event.message); break;
+        }
+      } catch { /* skip malformed lines */ }
+    }
+  }
+}
+
+export const streamBuildProfile = (
+  lyricsSetId: number,
+  req: { provider: string; model?: string },
+  callbacks: StreamCallbacks,
+): Promise<void> =>
+  consumeSSE(`/api/lireek/lyrics-sets/${lyricsSetId}/build-profile-stream`, req, callbacks);
+
+export const streamGenerate = (
+  profileId: number,
+  req: { profile_id: number; provider: string; model?: string; extra_instructions?: string },
+  callbacks: StreamCallbacks,
+): Promise<void> =>
+  consumeSSE(`/api/lireek/profiles/${profileId}/generate-stream`, req, callbacks);
+
+export const streamRefine = (
+  generationId: number,
+  req: { provider: string; model?: string },
+  callbacks: StreamCallbacks,
+): Promise<void> =>
+  consumeSSE(`/api/lireek/generations/${generationId}/refine-stream`, req, callbacks);
+
+export const skipThinking = (): Promise<void> =>
+  api('/api/lireek/skip-thinking', { method: 'POST' });
+

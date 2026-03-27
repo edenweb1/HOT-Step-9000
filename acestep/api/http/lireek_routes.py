@@ -7,10 +7,13 @@ pipeline: Genius fetch → profiling → generation → refinement → export.
 
 import json
 import logging
+import queue
+import threading
 import traceback
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from acestep.api.lireek.schemas import (
@@ -343,6 +346,208 @@ def register_lireek_routes(app: FastAPI) -> None:
             parent_generation_id=generation_id,
         )
         return saved
+
+    # ── SSE Streaming Endpoints ───────────────────────────────────────────
+
+    def _sse_stream(q: queue.Queue):
+        """Yield SSE data lines from a queue until sentinel None."""
+        while True:
+            item = q.get()
+            if item is None:
+                break
+            yield f"data: {item}\n"
+
+    @app.post("/api/lireek/lyrics-sets/{lyrics_set_id}/build-profile-stream")
+    async def build_profile_stream(lyrics_set_id: int, req: BuildProfileRequest):
+        """Build a profile with SSE streaming of LLM output."""
+        from acestep.api.lireek.lireek_db import get_lyrics_set, save_profile
+        from acestep.api.lireek.schemas import SongLyrics
+        from acestep.api.lireek.profiler_service import build_profile
+        from acestep.api.lireek.generation_service import make_streaming_llm_caller
+
+        ls = get_lyrics_set(lyrics_set_id)
+        if not ls:
+            raise HTTPException(status_code=404, detail="Lyrics set not found")
+
+        songs_raw = ls.get("songs") or []
+        if isinstance(songs_raw, str):
+            songs_raw = json.loads(songs_raw)
+        songs = [SongLyrics(**s) for s in songs_raw]
+
+        if not songs:
+            raise HTTPException(status_code=400, detail="Lyrics set has no songs")
+
+        q: queue.Queue = queue.Queue()
+
+        def on_chunk(text: str):
+            q.put(json.dumps({"type": "chunk", "text": text}) + "\n")
+
+        def on_phase(phase: str):
+            q.put(json.dumps({"type": "phase", "text": phase}) + "\n")
+
+        def run():
+            try:
+                caller = make_streaming_llm_caller(req.provider, req.model, on_chunk=on_chunk)
+                profile = build_profile(
+                    artist=ls.get("artist_name", "Unknown"),
+                    album=ls.get("album"),
+                    songs=songs,
+                    llm_call=caller,
+                    on_phase=on_phase,
+                )
+                saved = save_profile(
+                    lyrics_set_id=lyrics_set_id,
+                    provider=req.provider,
+                    model=req.model or "",
+                    profile_data=profile.model_dump(),
+                )
+                q.put(json.dumps({"type": "result", "data": saved}) + "\n")
+            except Exception as exc:
+                logger.exception("Streaming profile build failed")
+                q.put(json.dumps({"type": "error", "message": str(exc)}) + "\n")
+            finally:
+                q.put(None)
+
+        threading.Thread(target=run, daemon=True).start()
+        return StreamingResponse(_sse_stream(q), media_type="text/event-stream")
+
+    @app.post("/api/lireek/profiles/{profile_id}/generate-stream")
+    async def generate_stream(profile_id: int, req: GenerateRequest):
+        """Generate lyrics with SSE streaming of LLM output."""
+        from acestep.api.lireek.lireek_db import (
+            get_profile, get_generations, save_generation,
+        )
+        from acestep.api.lireek.schemas import LyricsProfile
+        from acestep.api.lireek.generation_service import generate_lyrics
+
+        profile_row = get_profile(profile_id)
+        if not profile_row:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        profile_data = profile_row.get("profile_data", {})
+        if isinstance(profile_data, str):
+            profile_data = json.loads(profile_data)
+        profile = LyricsProfile(**profile_data)
+
+        existing = get_generations(profile_id=profile_id)
+        used_subjects = [g.get("subject", "") for g in existing if g.get("subject")]
+        used_bpms = [g.get("bpm", 0) for g in existing if g.get("bpm")]
+        used_keys = [g.get("key", "") for g in existing if g.get("key")]
+        used_titles = [g.get("title", "") for g in existing if g.get("title")]
+
+        q: queue.Queue = queue.Queue()
+
+        def on_chunk(text: str):
+            q.put(json.dumps({"type": "chunk", "text": text}) + "\n")
+
+        def on_phase(phase: str):
+            q.put(json.dumps({"type": "phase", "text": phase}) + "\n")
+
+        def run():
+            try:
+                result = generate_lyrics(
+                    profile=profile,
+                    provider_name=req.provider,
+                    model=req.model,
+                    extra_instructions=req.extra_instructions,
+                    used_subjects=used_subjects,
+                    used_bpms=used_bpms,
+                    used_keys=used_keys,
+                    used_titles=used_titles,
+                    on_chunk=on_chunk,
+                    on_phase=on_phase,
+                )
+                saved = save_generation(
+                    profile_id=profile_id,
+                    provider=result.provider,
+                    model=result.model,
+                    lyrics=result.lyrics,
+                    extra_instructions=req.extra_instructions,
+                    title=result.title,
+                    subject=result.subject,
+                    bpm=result.bpm,
+                    key=result.key,
+                    caption=result.caption,
+                    duration=result.duration,
+                    system_prompt=result.system_prompt,
+                    user_prompt=result.user_prompt,
+                )
+                q.put(json.dumps({"type": "result", "data": saved}) + "\n")
+            except Exception as exc:
+                logger.exception("Streaming generation failed")
+                q.put(json.dumps({"type": "error", "message": str(exc)}) + "\n")
+            finally:
+                q.put(None)
+
+        threading.Thread(target=run, daemon=True).start()
+        return StreamingResponse(_sse_stream(q), media_type="text/event-stream")
+
+    @app.post("/api/lireek/generations/{generation_id}/refine-stream")
+    async def refine_stream(generation_id: int, req: RefineGenerationRequest):
+        """Refine lyrics with SSE streaming of LLM output."""
+        from acestep.api.lireek.lireek_db import (
+            get_generations, get_profile, save_generation,
+        )
+        from acestep.api.lireek.schemas import LyricsProfile
+        from acestep.api.lireek.generation_service import refine_lyrics
+
+        all_gens = get_generations()
+        original = next((g for g in all_gens if g["id"] == generation_id), None)
+        if not original:
+            raise HTTPException(status_code=404, detail="Generation not found")
+
+        profile = None
+        profile_row = get_profile(original["profile_id"])
+        if profile_row:
+            pd = profile_row.get("profile_data", {})
+            if isinstance(pd, str):
+                pd = json.loads(pd)
+            profile = LyricsProfile(**pd)
+
+        artist_name = profile.artist if profile else "Unknown"
+
+        q: queue.Queue = queue.Queue()
+
+        def on_chunk(text: str):
+            q.put(json.dumps({"type": "chunk", "text": text}) + "\n")
+
+        def run():
+            try:
+                result = refine_lyrics(
+                    original_lyrics=original["lyrics"],
+                    artist_name=artist_name,
+                    title=original.get("title", ""),
+                    provider_name=req.provider,
+                    model=req.model,
+                    profile=profile,
+                    on_chunk=on_chunk,
+                )
+                saved = save_generation(
+                    profile_id=original["profile_id"],
+                    provider=result.provider,
+                    model=result.model,
+                    lyrics=result.lyrics,
+                    title=result.title,
+                    system_prompt=result.system_prompt,
+                    user_prompt=result.user_prompt,
+                    parent_generation_id=generation_id,
+                )
+                q.put(json.dumps({"type": "result", "data": saved}) + "\n")
+            except Exception as exc:
+                logger.exception("Streaming refinement failed")
+                q.put(json.dumps({"type": "error", "message": str(exc)}) + "\n")
+            finally:
+                q.put(None)
+
+        threading.Thread(target=run, daemon=True).start()
+        return StreamingResponse(_sse_stream(q), media_type="text/event-stream")
+
+    @app.post("/api/lireek/skip-thinking")
+    async def skip_thinking():
+        """Signal the LLM to stop thinking and produce output."""
+        from acestep.api.llm.provider_manager import skip_thinking as _skip
+        _skip()
+        return {"status": "skip_requested"}
 
     @app.patch("/api/lireek/generations/{generation_id}/metadata")
     async def update_generation_metadata_endpoint(generation_id: int, req: UpdateMetadataRequest):
