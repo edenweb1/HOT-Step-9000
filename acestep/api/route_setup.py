@@ -27,6 +27,7 @@ from acestep.api.http.system_routes import register_system_routes
 from acestep.api.http.mastering_routes import register_mastering_routes
 from acestep.api.http.cover_art_routes import register_cover_art_routes
 from acestep.api.http.llm_routes import register_llm_routes
+from acestep.api.http.lireek_routes import register_lireek_routes
 from acestep.openrouter_adapter import create_openrouter_router
 
 
@@ -219,4 +220,5 @@ def configure_api_routes(
     init_lireek_db()
 
     register_llm_routes(app=app)
+    register_lireek_routes(app=app)
 
