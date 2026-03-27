@@ -1,5 +1,5 @@
 import React from 'react';
-import { Library, Disc, Search, User, LogIn, LogOut, Sun, Moon, Power, Mic2 } from 'lucide-react';
+import { Library, Disc, Search, User, LogIn, LogOut, Sun, Moon, Power, Mic2, Brain } from 'lucide-react';
 import { View } from '../types';
 import { useI18n } from '../context/I18nContext';
 
@@ -12,6 +12,7 @@ interface SidebarProps {
   onLogin?: () => void;
   onLogout?: () => void;
   onOpenSettings?: () => void;
+  onOpenLlmSettings?: () => void;
   onQuit?: () => void;
   isOpen?: boolean;
   onToggle?: () => void;
@@ -26,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogin,
   onLogout,
   onOpenSettings,
+  onOpenLlmSettings,
   onQuit,
   isOpen = true,
   onToggle,
@@ -100,6 +102,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
 
           <div className="mt-auto flex flex-col gap-2">
+            {/* LLM Settings */}
+            <button
+              onClick={onOpenLlmSettings}
+              className={`
+              w-full rounded-xl flex items-center gap-3 transition-all duration-200 text-zinc-500 dark:text-zinc-400 hover:text-violet-400 hover:bg-violet-500/10
+              ${isOpen ? 'px-3 py-2.5 justify-start' : 'aspect-square justify-center'}
+            `}
+              title="LLM Providers"
+            >
+              <div className="flex-shrink-0"><Brain size={20} /></div>
+              {isOpen && (
+                <span className="text-sm font-medium whitespace-nowrap">LLM Providers</span>
+              )}
+            </button>
             {/* Theme Toggle */}
             <button
               onClick={onToggleTheme}

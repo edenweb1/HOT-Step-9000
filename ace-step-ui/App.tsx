@@ -26,6 +26,7 @@ import { RefineModal } from './components/RefineModal';
 import { MasteringConsoleModal, MasteringParams as MasteringParamsType } from './components/MasteringConsoleModal';
 import { SearchPage } from './components/SearchPage';
 import { LyricStudio } from './components/lyric-studio/LyricStudio';
+import { LlmSettingsModal } from './components/LlmSettingsModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import DebugPanel from './components/DebugPanel';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -183,6 +184,7 @@ function AppContent() {
 
   // Settings Modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLlmSettings, setShowLlmSettings] = useState(false);
 
   // Profile View
   const [viewingUsername, setViewingUsername] = useState<string | null>(null);
@@ -2201,6 +2203,7 @@ function AppContent() {
           onLogin={() => setShowUsernameModal(true)}
           onLogout={logout}
           onOpenSettings={() => setShowSettingsModal(true)}
+          onOpenLlmSettings={() => setShowLlmSettings(true)}
           isOpen={showLeftSidebar}
           onToggle={() => setShowLeftSidebar(!showLeftSidebar)}
           onQuit={() => {
@@ -2306,6 +2309,10 @@ function AppContent() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onNavigateToProfile={handleNavigateToProfile}
+      />
+      <LlmSettingsModal
+        isOpen={showLlmSettings}
+        onClose={() => setShowLlmSettings(false)}
       />
       <StemSplitterModal />
       <AudioEnhancerModal />
