@@ -26,6 +26,7 @@ from acestep.api.http.stems_routes import register_stems_routes
 from acestep.api.http.system_routes import register_system_routes
 from acestep.api.http.mastering_routes import register_mastering_routes
 from acestep.api.http.cover_art_routes import register_cover_art_routes
+from acestep.api.http.llm_routes import register_llm_routes
 from acestep.openrouter_adapter import create_openrouter_router
 
 
@@ -210,4 +211,12 @@ def configure_api_routes(
         app=app,
         get_project_root=get_project_root,
     )
+
+    # ── Lireek integration routes ──────────────────────────────────
+
+    # Initialise Lireek database on first startup
+    from acestep.api.lireek.lireek_db import init_db as init_lireek_db
+    init_lireek_db()
+
+    register_llm_routes(app=app)
 
