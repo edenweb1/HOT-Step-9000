@@ -25,6 +25,7 @@ import { AudioEnhancerModal, openAudioEnhancer } from './components/AudioEnhance
 import { RefineModal } from './components/RefineModal';
 import { MasteringConsoleModal, MasteringParams as MasteringParamsType } from './components/MasteringConsoleModal';
 import { SearchPage } from './components/SearchPage';
+import { LyricStudio } from './components/lyric-studio/LyricStudio';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import DebugPanel from './components/DebugPanel';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -554,6 +555,8 @@ function AppContent() {
           setViewingPlaylistId(playlistId);
           setCurrentView('playlist');
         }
+      } else if (path === '/lyric-studio') {
+        setCurrentView('lyric-studio');
       } else if (path === '/search') {
         setCurrentView('search');
       }
@@ -1964,6 +1967,9 @@ function AppContent() {
           />
         );
 
+      case 'lyric-studio':
+        return <LyricStudio />;
+
 
       case 'create':
       default:
@@ -2182,6 +2188,8 @@ function AppContent() {
               window.history.pushState({}, '', '/');
             } else if (v === 'library') {
               window.history.pushState({}, '', '/library');
+            } else if (v === 'lyric-studio') {
+              window.history.pushState({}, '', '/lyric-studio');
             } else if (v === 'search') {
               window.history.pushState({}, '', '/search');
             }

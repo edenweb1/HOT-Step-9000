@@ -1,0 +1,212 @@
+/**
+ * Lyric Studio API client — typed wrappers for /api/lireek/ endpoints.
+ */
+
+const API_BASE = '';
+
+async function api<T>(endpoint: string, options: {
+  method?: string;
+  body?: unknown;
+} = {}): Promise<T> {
+  const { method = 'GET', body } = options;
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(error.detail || error.error || error.message || `Request failed (${response.status})`);
+  }
+
+  return response.json();
+}
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface Artist {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export interface LyricsSet {
+  id: number;
+  artist_id: number;
+  artist_name: string;
+  album: string | null;
+  songs: SongLyric[] | string;
+  max_songs: number;
+  created_at: string;
+}
+
+export interface SongLyric {
+  title: string;
+  lyrics: string;
+  url?: string;
+}
+
+export interface Profile {
+  id: number;
+  lyrics_set_id: number;
+  provider: string;
+  model: string;
+  profile_data: Record<string, any>;
+  created_at: string;
+}
+
+export interface Generation {
+  id: number;
+  profile_id: number;
+  provider: string;
+  model: string;
+  lyrics: string;
+  title?: string;
+  subject?: string;
+  caption?: string;
+  bpm?: number;
+  key?: string;
+  duration?: number;
+  parent_generation_id?: number;
+  created_at: string;
+  // Context fields (from /generations/all)
+  artist_name?: string;
+  album?: string;
+}
+
+export interface AlbumPreset {
+  id: number;
+  lyrics_set_id: number;
+  adapter_path?: string;
+  adapter_scale?: number;
+  adapter_group_scales?: { self_attn: number; cross_attn: number; mlp: number };
+  matchering_reference_path?: string;
+  created_at: string;
+}
+
+export interface AudioGeneration {
+  id: number;
+  generation_id: number;
+  job_id: string;
+  created_at: string;
+}
+
+// ── API ─────────────────────────────────────────────────────────────────────
+
+export const lireekApi = {
+  // ── Artists ──────────────────────────────────────────────────────────────
+  listArtists: (): Promise<{ artists: Artist[] }> =>
+    api('/api/lireek/artists'),
+
+  deleteArtist: (id: number): Promise<{ deleted: boolean }> =>
+    api(`/api/lireek/artists/${id}`, { method: 'DELETE' }),
+
+  // ── Lyrics Sets ─────────────────────────────────────────────────────────
+  listLyricsSets: (artistId?: number): Promise<{ lyrics_sets: LyricsSet[] }> =>
+    api(`/api/lireek/lyrics-sets${artistId != null ? `?artist_id=${artistId}` : ''}`),
+
+  getLyricsSet: (id: number): Promise<LyricsSet> =>
+    api(`/api/lireek/lyrics-sets/${id}`),
+
+  deleteLyricsSet: (id: number): Promise<{ deleted: boolean }> =>
+    api(`/api/lireek/lyrics-sets/${id}`, { method: 'DELETE' }),
+
+  removeSong: (lyricsSetId: number, songIndex: number): Promise<any> =>
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/songs/${songIndex}`, { method: 'DELETE' }),
+
+  // ── Genius Fetch ────────────────────────────────────────────────────────
+  fetchLyrics: (params: {
+    artist: string;
+    album?: string;
+    max_songs?: number;
+  }): Promise<{ artist: Artist; lyrics_set: LyricsSet; songs_fetched: number }> =>
+    api('/api/lireek/fetch-lyrics', { method: 'POST', body: params }),
+
+  // ── Profiles ────────────────────────────────────────────────────────────
+  listProfiles: (lyricsSetId?: number): Promise<{ profiles: Profile[] }> =>
+    api(`/api/lireek/profiles${lyricsSetId != null ? `?lyrics_set_id=${lyricsSetId}` : ''}`),
+
+  getProfile: (id: number): Promise<Profile> =>
+    api(`/api/lireek/profiles/${id}`),
+
+  deleteProfile: (id: number): Promise<{ deleted: boolean }> =>
+    api(`/api/lireek/profiles/${id}`, { method: 'DELETE' }),
+
+  buildProfile: (lyricsSetId: number, params: {
+    provider: string;
+    model?: string;
+  }): Promise<Profile> =>
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/build-profile`, { method: 'POST', body: params }),
+
+  // ── Generations ─────────────────────────────────────────────────────────
+  listGenerations: (profileId?: number): Promise<{ generations: Generation[] }> =>
+    api(`/api/lireek/generations${profileId != null ? `?profile_id=${profileId}` : ''}`),
+
+  listAllGenerations: (): Promise<{ generations: Generation[] }> =>
+    api('/api/lireek/generations/all'),
+
+  generateLyrics: (profileId: number, params: {
+    profile_id: number;
+    provider: string;
+    model?: string;
+    extra_instructions?: string;
+  }): Promise<Generation> =>
+    api(`/api/lireek/profiles/${profileId}/generate`, { method: 'POST', body: params }),
+
+  refineLyrics: (generationId: number, params: {
+    provider: string;
+    model?: string;
+  }): Promise<Generation> =>
+    api(`/api/lireek/generations/${generationId}/refine`, { method: 'POST', body: params }),
+
+  updateMetadata: (generationId: number, updates: {
+    title?: string;
+    caption?: string;
+    bpm?: number;
+    key?: string;
+    duration?: number;
+    subject?: string;
+  }): Promise<any> =>
+    api(`/api/lireek/generations/${generationId}/metadata`, { method: 'PATCH', body: updates }),
+
+  deleteGeneration: (id: number): Promise<{ deleted: boolean }> =>
+    api(`/api/lireek/generations/${id}`, { method: 'DELETE' }),
+
+  // ── Export ──────────────────────────────────────────────────────────────
+  exportGeneration: (generationId: number): Promise<{ exported: boolean; path: string }> =>
+    api(`/api/lireek/generations/${generationId}/export`, { method: 'POST' }),
+
+  // ── Album Presets ───────────────────────────────────────────────────────
+  getPreset: (lyricsSetId: number): Promise<{ preset: AlbumPreset | null }> =>
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/preset`),
+
+  upsertPreset: (lyricsSetId: number, params: {
+    adapter_path?: string;
+    adapter_scale?: number;
+    adapter_group_scales?: { self_attn: number; cross_attn: number; mlp: number };
+    matchering_reference_path?: string;
+  }): Promise<{ preset: AlbumPreset }> =>
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/preset`, { method: 'PUT', body: params }),
+
+  deletePreset: (lyricsSetId: number): Promise<{ deleted: boolean }> =>
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/preset`, { method: 'DELETE' }),
+
+  // ── Slop Detection ──────────────────────────────────────────────────────
+  slopScan: (text: string): Promise<any> =>
+    api('/api/lireek/slop-scan', { method: 'POST', body: { text } }),
+
+  // ── Bulk Operations ─────────────────────────────────────────────────────
+  purgeAll: (): Promise<any> =>
+    api('/api/lireek/purge', { method: 'POST' }),
+
+  // ── Audio Generations ───────────────────────────────────────────────────
+  linkAudio: (generationId: number, jobId: string): Promise<any> =>
+    api(`/api/lireek/generations/${generationId}/audio`, { method: 'POST', body: { job_id: jobId } }),
+
+  getAudioGenerations: (generationId: number): Promise<{ audio_generations: AudioGeneration[] }> =>
+    api(`/api/lireek/generations/${generationId}/audio`),
+};
