@@ -235,8 +235,10 @@ def get_lyrics_sets(artist_id: Optional[int] = None) -> list[dict[str, Any]]:
         results = []
         for r in rows:
             d = _row_to_dict(r)
-            songs = json.loads(d.pop("songs"))
-            d["total_songs"] = len(songs)
+            # Keep songs as-is (JSON string) for the frontend to parse
+            songs_raw = d.get("songs", "[]")
+            songs = json.loads(songs_raw) if isinstance(songs_raw, str) else songs_raw
+            d["total_songs"] = len(songs) if isinstance(songs, list) else 0
             results.append(d)
         return results
     finally:
