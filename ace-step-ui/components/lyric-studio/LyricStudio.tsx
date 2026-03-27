@@ -50,7 +50,7 @@ export const LyricStudio: React.FC = () => {
   // Fetch panel
   const [fetchArtist, setFetchArtist] = useState('');
   const [fetchAlbum, setFetchAlbum] = useState('');
-  const [fetchMaxSongs, setFetchMaxSongs] = useState(10);
+  const [fetchMaxSongs, setFetchMaxSongs] = useState(50);
   const [fetching, setFetching] = useState(false);
 
   // LLM provider
