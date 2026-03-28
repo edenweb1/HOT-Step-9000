@@ -539,7 +539,7 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
           const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
           if (useFilename) {
             const fileName = preset.adapter_path.replace(/\\/g, '/').split('/').pop() || '';
-            const triggerWord = fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ');
+            const triggerWord = fileName.replace(/\.safetensors$/i, '');
             if (triggerWord && params.style) {
               const current = (params.style as string).trim();
               if (!current.toLowerCase().includes(triggerWord.toLowerCase())) {
