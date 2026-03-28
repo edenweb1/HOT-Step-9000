@@ -46,23 +46,18 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
     [generations, filterGenerationId]
   );
 
-  // Track in-flight load to prevent duplicates
-  const loadingRef = useRef(false);
-
-  // Load audio generations — keyed only on genKey + token (stable strings)
+  // Load audio generations — depends on genKey (stable string) + token
+  // No locks/guards — React deduplicates effects with identical string deps
   useEffect(() => {
     if (!token || genKey === '|all') {
       setLoading(false);
       return;
     }
-    // Prevent concurrent loads
-    if (loadingRef.current) return;
-    loadingRef.current = true;
 
     let cancelled = false;
+    setLoading(true);
 
     const load = async () => {
-      setLoading(true);
       try {
         const gens = filterGenerationId
           ? generationsRef.current.filter(g => g.id === filterGenerationId)
@@ -82,8 +77,6 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
           }
           console.log(`[RecordingsTab] Job history has ${Object.keys(jobHistory).length} entries`);
         } catch { /* history not available */ }
-
-        if (cancelled) { loadingRef.current = false; return; }
 
         const results: SongGroup[] = [];
         for (const gen of gens) {
@@ -165,14 +158,14 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
       } catch (err) {
         console.error('[RecordingsTab] Failed to load:', err);
       } finally {
-        if (!cancelled) setLoading(false);
-        loadingRef.current = false;
+        // ALWAYS reset loading so UI never gets stuck
+        setLoading(false);
       }
     };
 
     load();
     return () => { cancelled = true; };
-  }, [genKey, token]); // ← stable string deps only!
+  }, [genKey, token]);
 
   // Auto-expand when filtering to a single generation
   useEffect(() => {
