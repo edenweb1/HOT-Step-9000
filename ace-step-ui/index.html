@@ -193,6 +193,41 @@
       .hide-scrollbar::-webkit-scrollbar {
         display: none;
       }
+
+      /* ========================================
+         Lyric Studio V2 — Transitions & Animations
+         ======================================== */
+      @keyframes ls2-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes ls2-slide-up {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes ls2-card-in {
+        from { opacity: 0; transform: scale(0.95) translateY(8px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      .ls2-fade-in { animation: ls2-fade-in 0.25s ease-out both; }
+      .ls2-slide-up { animation: ls2-slide-up 0.3s ease-out both; }
+      .ls2-card-in { animation: ls2-card-in 0.35s ease-out both; }
+      /* Staggered card entry */
+      .ls2-stagger-1 { animation-delay: 0.03s; }
+      .ls2-stagger-2 { animation-delay: 0.06s; }
+      .ls2-stagger-3 { animation-delay: 0.09s; }
+      .ls2-stagger-4 { animation-delay: 0.12s; }
+      .ls2-stagger-5 { animation-delay: 0.15s; }
+      .ls2-stagger-6 { animation-delay: 0.18s; }
+      .ls2-stagger-7 { animation-delay: 0.21s; }
+      .ls2-stagger-8 { animation-delay: 0.24s; }
+      .ls2-stagger-9 { animation-delay: 0.27s; }
+      .ls2-stagger-10 { animation-delay: 0.3s; }
+      .ls2-stagger-11 { animation-delay: 0.33s; }
+      /* Tab content transition */
+      .ls2-tab-content {
+        animation: ls2-fade-in 0.2s ease-out;
+      }
     </style>
   <script type="importmap">
 {

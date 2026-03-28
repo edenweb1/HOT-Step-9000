@@ -73,12 +73,12 @@ export const AlbumGrid: React.FC<AlbumGridProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {albums.map((album) => {
+          {albums.map((album, idx) => {
             const songs = parseSongs(album.songs);
             return (
               <div
                 key={album.id}
-                className="group relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-indigo-500/10"
+                className={`group relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-indigo-500/10 ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
                 onClick={() => onSelectAlbum(album)}
               >
                 {/* Album gradient background */}

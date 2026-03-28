@@ -99,12 +99,12 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
 
   return (
     <div className="p-4 space-y-2">
-      {groups.map((group) => {
+      {groups.map((group, idx) => {
         const isExpanded = expandedGenId === group.generation.id;
         return (
           <div
             key={group.generation.id}
-            className="rounded-xl border border-white/5 hover:border-white/10 overflow-hidden transition-colors"
+            className={`rounded-xl border border-white/5 hover:border-white/10 overflow-hidden transition-colors ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
           >
             {/* Group header */}
             <button

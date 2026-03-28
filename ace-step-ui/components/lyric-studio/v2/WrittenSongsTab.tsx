@@ -130,14 +130,14 @@ export const WrittenSongsTab: React.FC<WrittenSongsTabProps> = ({
         </div>
       ) : (
         <div className="space-y-1">
-          {generations.map((gen) => {
+          {generations.map((gen, idx) => {
             const isExpanded = expandedId === gen.id;
             const isEditing = editingId === gen.id;
 
             return (
               <div
                 key={gen.id}
-                className="rounded-xl border border-white/5 hover:border-white/10 overflow-hidden transition-colors"
+                className={`rounded-xl border border-white/5 hover:border-white/10 overflow-hidden transition-colors ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
               >
                 {/* Header */}
                 <button

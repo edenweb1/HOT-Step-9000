@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Music, Plus, RefreshCw, Trash2, ImageOff, MoreVertical } from 'lucide-react';
 import { Artist } from '../../../services/lyricStudioApi';
 
@@ -16,6 +16,19 @@ export const ArtistGrid: React.FC<ArtistGridProps> = ({
 }) => {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (menuOpenId === null) return;
+    const handler = (e: MouseEvent) => {
+      if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpenId]);
 
   const gradient = (name: string) => {
     const hash = name.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
@@ -68,11 +81,11 @@ export const ArtistGrid: React.FC<ArtistGridProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {artists.map((artist) => (
+        <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {artists.map((artist, idx) => (
             <div
               key={artist.id}
-              className="group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-pink-500/10"
+              className={`group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-pink-500/10 ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
               onClick={() => onSelectArtist(artist)}
             >
               {/* Background image or gradient */}

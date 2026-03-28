@@ -39,7 +39,7 @@ export const SourceLyricsTab: React.FC<SourceLyricsTabProps> = ({ album, onDelet
         return (
           <div
             key={idx}
-            className="rounded-xl border border-white/5 overflow-hidden transition-colors hover:border-white/10"
+            className={`rounded-xl border border-white/5 overflow-hidden transition-colors hover:border-white/10 ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
           >
             {/* Song header */}
             <button

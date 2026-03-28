@@ -101,13 +101,13 @@ export const ProfilesTab: React.FC<ProfilesTabProps> = ({
         </div>
       ) : (
         <div className="space-y-2">
-          {profiles.map((profile) => {
+          {profiles.map((profile, idx) => {
             const data = profile.profile_data;
             const themes = data?.themes as string[] | undefined;
             return (
               <div
                 key={profile.id}
-                className="group rounded-xl border border-white/5 hover:border-white/10 bg-white/[0.01] overflow-hidden transition-colors"
+                className={`group rounded-xl border border-white/5 hover:border-white/10 bg-white/[0.01] overflow-hidden transition-colors ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
               >
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">

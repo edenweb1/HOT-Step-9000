@@ -260,7 +260,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     <div className="h-full flex flex-col relative">
       {/* Toast */}
       {toast && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-zinc-800 border border-white/10 text-sm text-white shadow-2xl animate-in fade-in slide-in-from-top-2">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-zinc-800/90 backdrop-blur-sm border border-white/10 text-sm text-white shadow-2xl ls2-slide-up">
           {toast}
         </div>
       )}
@@ -268,7 +268,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
       {/* Main content */}
       <div className="flex-1 overflow-hidden">
         {nav.level === 'artists' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto ls2-fade-in">
             <ArtistGrid
               artists={artists}
               loading={artistsLoading}
@@ -281,7 +281,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
         )}
 
         {nav.level === 'albums' && nav.selectedArtist && (
-          <div className="h-full flex">
+          <div className="h-full flex ls2-fade-in">
             <div className="w-56 flex-shrink-0 border-r border-white/5 overflow-hidden">
               <ArtistSidebar
                 artists={artists}
@@ -304,7 +304,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
         )}
 
         {nav.level === 'album-detail' && nav.selectedArtist && nav.selectedAlbum && (
-          <div className="h-full flex">
+          <div className="h-full flex ls2-fade-in">
             {/* Left: album header */}
             <div className="w-64 flex-shrink-0 border-r border-white/5 overflow-hidden">
               <AlbumHeader
@@ -312,6 +312,8 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                 album={nav.selectedAlbum}
                 onBack={handleBackToAlbums}
                 onOpenPreset={() => setPresetModalOpen(true)}
+                profileCount={profiles.length}
+                generationCount={generations.length}
               />
             </div>
             {/* Right: tabbed content */}
