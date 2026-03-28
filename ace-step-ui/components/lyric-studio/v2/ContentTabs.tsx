@@ -26,8 +26,8 @@ export const ContentTabs: React.FC<ContentTabsProps> = ({
   const tabs: Tab[] = [
     { id: 'source-lyrics', label: 'Source Lyrics', icon: <FileText className="w-4 h-4" />, badge: sourceLyricsCount },
     { id: 'profiles', label: 'Profiles', icon: <Users className="w-4 h-4" />, badge: profilesCount },
-    { id: 'written-songs', label: 'Written Songs', icon: <Music2 className="w-4 h-4" />, badge: writtenSongsCount },
-    { id: 'recordings', label: 'Recordings', icon: <Headphones className="w-4 h-4" />, badge: recordingsCount },
+    { id: 'written-songs', label: 'Generated Lyrics', icon: <Music2 className="w-4 h-4" />, badge: writtenSongsCount },
+    { id: 'recordings', label: 'Generated Songs', icon: <Headphones className="w-4 h-4" />, badge: recordingsCount },
   ];
 
   return (

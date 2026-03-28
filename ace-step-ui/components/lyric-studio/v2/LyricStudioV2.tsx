@@ -67,36 +67,33 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
   // ── Load artists ──
   const loadArtists = useCallback(async () => {
     setArtistsLoading(true);
+    let artistsList: typeof artists = [];
     try {
       const res = await lireekApi.listArtists();
+      artistsList = res.artists;
       setArtists(res.artists);
-      setArtistsLoading(false);
-
-      // Auto-fetch missing images in the background (non-blocking)
-      const missing = res.artists.filter(a => !a.image_url);
-      if (missing.length > 0) {
-        console.log(`[LyricStudioV2] Fetching images for ${missing.length} artists...`);
-        const batchSize = 3;
-        for (let i = 0; i < missing.length; i += batchSize) {
-          const batch = missing.slice(i, i + batchSize);
-          const results = await Promise.allSettled(
-            batch.map(a => lireekApi.refreshArtistImage(a.id))
-          );
-          setArtists(prev => prev.map(artist => {
-            const idx = batch.findIndex(b => b.id === artist.id);
-            if (idx === -1) return artist;
-            const result = results[idx];
-            if (result.status === 'fulfilled' && result.value.image_url) {
-              return { ...artist, image_url: result.value.image_url };
-            }
-            return artist;
-          }));
-        }
-        console.log('[LyricStudioV2] Image refresh complete');
-      }
     } catch (err) {
       console.error('[LyricStudioV2] Failed to load artists:', err);
+    } finally {
       setArtistsLoading(false);
+    }
+
+    // Fire-and-forget: fetch missing artist images one at a time
+    const missing = artistsList.filter(a => !a.image_url);
+    if (missing.length > 0) {
+      console.log(`[LyricStudioV2] Background: fetching images for ${missing.length} artists...`);
+      const fetchNext = (idx: number) => {
+        if (idx >= missing.length) return;
+        lireekApi.refreshArtistImage(missing[idx].id)
+          .then(result => {
+            if (result.image_url) {
+              setArtists(prev => prev.map(a => a.id === missing[idx].id ? { ...a, image_url: result.image_url } : a));
+            }
+          })
+          .catch(() => {})
+          .finally(() => setTimeout(() => fetchNext(idx + 1), 500));
+      };
+      fetchNext(0);
     }
   }, []);
 
@@ -105,35 +102,33 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
   // ── Load albums for selected artist ──
   const loadAlbums = useCallback(async (artistId: number) => {
     setAlbumsLoading(true);
+    let albumsList: typeof albums = [];
     try {
       const res = await lireekApi.listLyricsSets(artistId);
+      albumsList = res.lyrics_sets;
       setAlbums(res.lyrics_sets);
-      setAlbumsLoading(false);
-
-      // Auto-fetch missing album cover art in the background
-      const missing = res.lyrics_sets.filter(a => !a.image_url && a.album);
-      if (missing.length > 0) {
-        console.log(`[LyricStudioV2] Fetching cover art for ${missing.length} albums...`);
-        const batchSize = 2;
-        for (let i = 0; i < missing.length; i += batchSize) {
-          const batch = missing.slice(i, i + batchSize);
-          const results = await Promise.allSettled(
-            batch.map(a => lireekApi.refreshAlbumImage(a.id))
-          );
-          setAlbums(prev => prev.map(album => {
-            const idx = batch.findIndex(b => b.id === album.id);
-            if (idx === -1) return album;
-            const result = results[idx];
-            if (result.status === 'fulfilled' && result.value.image_url) {
-              return { ...album, image_url: result.value.image_url };
-            }
-            return album;
-          }));
-        }
-      }
     } catch (err) {
       console.error('[LyricStudioV2] Failed to load albums:', err);
+    } finally {
       setAlbumsLoading(false);
+    }
+
+    // Fire-and-forget: fetch missing album cover art one at a time
+    const missing = albumsList.filter(a => !a.image_url && a.album);
+    if (missing.length > 0) {
+      console.log(`[LyricStudioV2] Background: fetching cover art for ${missing.length} albums...`);
+      const fetchNext = (idx: number) => {
+        if (idx >= missing.length) return;
+        lireekApi.refreshAlbumImage(missing[idx].id)
+          .then(result => {
+            if (result.image_url) {
+              setAlbums(prev => prev.map(a => a.id === missing[idx].id ? { ...a, image_url: result.image_url } : a));
+            }
+          })
+          .catch(() => {})
+          .finally(() => setTimeout(() => fetchNext(idx + 1), 500));
+      };
+      fetchNext(0);
     }
   }, []);
 
