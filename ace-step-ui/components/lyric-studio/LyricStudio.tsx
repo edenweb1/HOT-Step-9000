@@ -484,20 +484,36 @@ export const LyricStudio: React.FC = () => {
       // Vocoder
       const vocoder = readPersisted('ace-vocoderModel');
       if (vocoder) params.vocoderModel = vocoder;
+      // Thinking (enables LM audio code generation)
+      const thinkVal = readPersisted('ace-thinking');
+      if (thinkVal !== undefined) params.thinking = thinkVal;
+      // getLrc is useState(true) in CreatePanel, not persisted — always enable for lyrics
+      params.getLrc = true;
+      // Cover art: read user's global setting (same as App.tsx handleGenerate)
+      params.generateCoverArt = localStorage.getItem('generate_cover_art') === 'true';
 
       // ── Load adapter from album preset via API ──
       if (preset?.adapter_path) {
         try {
           // Check if the adapter is already loaded to avoid corrupting an active generation
           const loraStatus = await generateApi.getLoraStatus(token);
-          const alreadyLoaded = loraStatus?.advanced?.slots?.some(
+          const existingSlot = loraStatus?.advanced?.slots?.find(
             (s: any) => s.path === preset.adapter_path
           );
-          if (alreadyLoaded) {
+          if (existingSlot) {
             console.log('[LyricStudio] Adapter already loaded, skipping reload');
             params.loraLoaded = true;
             params.loraPath = preset.adapter_path;
             params.loraScale = preset.adapter_scale ?? 1.0;
+            // Still apply group scales — they may differ from what's currently set
+            if (preset.adapter_group_scales) {
+              try {
+                await generateApi.setSlotGroupScales({
+                  slot: existingSlot.slot,
+                  ...preset.adapter_group_scales,
+                }, token);
+              } catch { /* non-critical */ }
+            }
           } else {
             showToast('Loading adapter...');
             await generateApi.loadLora({
@@ -508,6 +524,32 @@ export const LyricStudio: React.FC = () => {
             params.loraLoaded = true;
             params.loraPath = preset.adapter_path;
             params.loraScale = preset.adapter_scale ?? 1.0;
+          }
+          // Apply trigger word (derive from filename, same as CreatePanel global trigger logic)
+          const useFilename = localStorage.getItem('ace-globalTriggerUseFilename') === 'true';
+          const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
+          if (useFilename) {
+            const fileName = preset.adapter_path.replace(/\\/g, '/').split('/').pop() || '';
+            const triggerWord = fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ');
+            if (triggerWord) {
+              // Refresh status to get actual slot number after load
+              const refreshStatus = existingSlot
+                ? { advanced: { slots: [existingSlot] } }
+                : await generateApi.getLoraStatus(token);
+              const slot = refreshStatus?.advanced?.slots?.find(
+                (s: any) => s.path === preset.adapter_path
+              );
+              if (slot) {
+                try {
+                  await generateApi.setSlotTriggerWord({
+                    slot: slot.slot,
+                    trigger_word: triggerWord,
+                    tag_position: placement,
+                  }, token);
+                  console.log(`[LyricStudio] Trigger word '${triggerWord}' (${placement}) applied`);
+                } catch { /* non-critical */ }
+              }
+            }
           }
         } catch (loadErr) {
           console.warn('[LyricStudio] Failed to load adapter, continuing without:', loadErr);
