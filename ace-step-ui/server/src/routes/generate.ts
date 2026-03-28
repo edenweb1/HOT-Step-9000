@@ -911,7 +911,7 @@ router.get('/status/:jobId', authMiddleware, async (req: AuthenticatedRequest, r
                 if (params.generateCoverArt) {
                   try {
                     const coverApiUrl = `${config.acestep.apiUrl}/v1/cover_art/generate`;
-                    console.log(`[CoverArt] Requesting cover for song ${songId}...`);
+                    console.log(`[CoverArt] Requesting cover for song ${songId}, subject: "${params.coverArtSubject || '(empty)'}"`);
                     const coverRes = await (await import('node-fetch')).default(coverApiUrl, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ACESTEP_API_KEY || '' },

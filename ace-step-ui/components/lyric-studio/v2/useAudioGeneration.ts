@@ -195,6 +195,7 @@ export function useAudioGeneration({ profiles, showToast, onJobLinked }: UseAudi
       params.source = 'lyric-studio';
 
       // 8) Start generation
+      console.log(`[LyricStudioV2] Starting generation with coverArtSubject: "${params.coverArtSubject || '(empty)'}", title: "${params.title}"`);
       const res = await generateApi.startGeneration(params as any, token);
       const jobId = res.jobId || (res as any).job_id;
       showToast(`Audio job queued: ${jobId}`);
