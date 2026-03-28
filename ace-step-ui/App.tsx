@@ -558,7 +558,7 @@ function AppContent() {
           setViewingPlaylistId(playlistId);
           setCurrentView('playlist');
         }
-      } else if (path === '/lyric-studio') {
+      } else if (path === '/lyric-studio' || path.startsWith('/lyric-studio/')) {
         setCurrentView('lyric-studio');
       } else if (path === '/search') {
         setCurrentView('search');

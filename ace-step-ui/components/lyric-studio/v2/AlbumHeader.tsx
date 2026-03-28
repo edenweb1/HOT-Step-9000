@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, Settings2, Disc3, Music, FileText, Users, Music2 } from 'lucide-react';
+import { ChevronLeft, Settings2, Disc3, Music, FileText, Users, Music2, Headphones } from 'lucide-react';
 import { Artist, LyricsSet, SongLyric } from '../../../services/lyricStudioApi';
 
 function parseSongs(songs: SongLyric[] | string): SongLyric[] {
@@ -16,10 +16,11 @@ interface AlbumHeaderProps {
   onOpenPreset: () => void;
   profileCount?: number;
   generationCount?: number;
+  songCount?: number;
 }
 
 export const AlbumHeader: React.FC<AlbumHeaderProps> = ({
-  artist, album, onBack, onOpenPreset, profileCount = 0, generationCount = 0,
+  artist, album, onBack, onOpenPreset, profileCount = 0, generationCount = 0, songCount = 0,
 }) => {
   const [imageError, setImageError] = React.useState(false);
   const songs = parseSongs(album.songs);
@@ -80,7 +81,13 @@ export const AlbumHeader: React.FC<AlbumHeaderProps> = ({
           {generationCount > 0 && (
             <div className="flex items-center gap-2 text-zinc-400">
               <Music2 className="w-3.5 h-3.5" />
-              <span>{generationCount} written song{generationCount !== 1 ? 's' : ''}</span>
+              <span>{generationCount} generated lyric{generationCount !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {songCount > 0 && (
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Headphones className="w-3.5 h-3.5" />
+              <span>{songCount} generated song{songCount !== 1 ? 's' : ''}</span>
             </div>
           )}
         </div>

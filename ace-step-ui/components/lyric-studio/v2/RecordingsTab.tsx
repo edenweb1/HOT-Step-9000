@@ -17,10 +17,11 @@ interface RecordingsTabProps {
   showToast: (msg: string) => void;
   filterGenerationId?: number | null;
   onClearFilter?: () => void;
+  onSongCountChange?: (count: number) => void;
 }
 
 export const RecordingsTab: React.FC<RecordingsTabProps> = ({
-  generations, onPlaySong, showToast, filterGenerationId, onClearFilter,
+  generations, onPlaySong, showToast, filterGenerationId, onClearFilter, onSongCountChange,
 }) => {
   const { token } = useAuth();
   const [groups, setGroups] = useState<SongGroup[]>([]);
@@ -154,7 +155,11 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
           }
         }
         console.log(`[RecordingsTab] Total groups: ${results.length}, total songs: ${results.reduce((n, g) => n + g.songs.length, 0)}`);
-        if (!cancelled) setGroups(results);
+        if (!cancelled) {
+          setGroups(results);
+          const totalSongs = results.reduce((n, g) => n + g.songs.length, 0);
+          onSongCountChange?.(totalSongs);
+        }
       } catch (err) {
         console.error('[RecordingsTab] Failed to load:', err);
       } finally {
