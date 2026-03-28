@@ -95,6 +95,7 @@ export const LyricStudio: React.FC = () => {
   const [presetBrowserTarget, setPresetBrowserTarget] = useState<'adapter' | 'matchering'>('adapter');
   const [detectedAdapterType, setDetectedAdapterType] = useState<'lokr' | 'lora' | 'unknown' | null>(null);
   const [presetGroupsExpanded, setPresetGroupsExpanded] = useState(false);
+  const [presetLoading, setPresetLoading] = useState(false);
 
   // Album presets
   const [presets, setPresets] = useState<Record<number, AlbumPreset | null>>({});
@@ -324,6 +325,7 @@ export const LyricStudio: React.FC = () => {
 
   // ── Album Preset Handlers ───────────────────────────────────────────────
   const loadPreset = async (lyricsSetId: number) => {
+    setPresetLoading(true);
     try {
       const res = await lireekApi.getPreset(lyricsSetId);
       setPresets(prev => ({ ...prev, [lyricsSetId]: res.preset }));
@@ -341,6 +343,8 @@ export const LyricStudio: React.FC = () => {
       }
     } catch (err) {
       showToast(`Failed to load preset: ${(err as Error).message}`);
+    } finally {
+      setPresetLoading(false);
     }
   };
 
@@ -783,6 +787,11 @@ export const LyricStudio: React.FC = () => {
                   )}
                 </summary>
                 <div className="mt-3 p-4 rounded-xl bg-white/5 border border-white/5 space-y-4">
+                  {presetLoading ? (
+                    <div className="flex items-center justify-center py-6 text-zinc-500">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading preset…
+                    </div>
+                  ) : (<>
 
                   {/* ── Adapter Path ── */}
                   <div className="space-y-2">
@@ -941,6 +950,7 @@ export const LyricStudio: React.FC = () => {
                     {actionLoading === `preset-${ls.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     Save Preset
                   </button>
+                  </>)}
                 </div>
               </details>
 
