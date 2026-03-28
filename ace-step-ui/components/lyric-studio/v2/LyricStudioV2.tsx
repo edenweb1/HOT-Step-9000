@@ -51,6 +51,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
 
   // ── Tabs ──
   const [activeTab, setActiveTab] = useState<TabId>('source-lyrics');
+  const [recordingsFilter, setRecordingsFilter] = useState<number | null>(null);
 
   // ── Modals ──
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
@@ -415,6 +416,10 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                     onRefresh={refreshAlbumData}
                     onGenerateAudio={handleGenerateAudio}
                     onSendToCreate={handleSendToCreate}
+                    onViewRecordings={(genId) => {
+                      setRecordingsFilter(genId);
+                      setActiveTab('recordings');
+                    }}
                     showToast={showToast}
                   />
                 )}
@@ -423,6 +428,8 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                     generations={generations}
                     onPlaySong={handlePlaySong}
                     showToast={showToast}
+                    filterGenerationId={recordingsFilter}
+                    onClearFilter={() => setRecordingsFilter(null)}
                   />
                 )}
               </ContentTabs>

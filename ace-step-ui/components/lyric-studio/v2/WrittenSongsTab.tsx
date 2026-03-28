@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Pencil, Music2, Wand2, Play, Loader2, ChevronDown, ChevronRight, Send, FileText } from 'lucide-react';
+import { Plus, Trash2, Pencil, Music2, Wand2, Play, Loader2, ChevronDown, ChevronRight, Send, FileText, Headphones } from 'lucide-react';
 import { lireekApi, Generation, Profile } from '../../../services/lyricStudioApi';
 
 interface WrittenSongsTabProps {
@@ -8,11 +8,12 @@ interface WrittenSongsTabProps {
   onRefresh: () => void;
   onGenerateAudio: (gen: Generation) => void;
   onSendToCreate?: (gen: Generation) => void;
+  onViewRecordings?: (genId: number) => void;
   showToast: (msg: string) => void;
 }
 
 export const WrittenSongsTab: React.FC<WrittenSongsTabProps> = ({
-  generations, profiles, onRefresh, onGenerateAudio, onSendToCreate, showToast,
+  generations, profiles, onRefresh, onGenerateAudio, onSendToCreate, onViewRecordings, showToast,
 }) => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -133,11 +134,21 @@ export const WrittenSongsTab: React.FC<WrittenSongsTabProps> = ({
                     <p className="text-sm font-medium text-zinc-200 truncate">
                       {gen.title || 'Untitled'}
                     </p>
-                    <p className="text-xs text-zinc-500 truncate mt-0.5">
-                      {gen.caption?.slice(0, 80) || 'No caption'}
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {gen.subject || 'No subject'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {onViewRecordings && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewRecordings(gen.id); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-pink-400 hover:bg-pink-500/10 transition-colors"
+                        title="View generated songs from these lyrics"
+                      >
+                        <Headphones className="w-3 h-3" />
+                        Songs
+                      </button>
+                    )}
                     {gen.bpm ? (
                       <span className="text-[11px] text-zinc-500 font-mono">{gen.bpm} BPM</span>
                     ) : null}
