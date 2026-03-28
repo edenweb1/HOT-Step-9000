@@ -2531,6 +2531,33 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ── Consume pending import from Lyric Studio ────────────────────────────
+  useEffect(() => {
+    const raw = localStorage.getItem('hotstep_lireek_import');
+    if (!raw) return;
+    localStorage.removeItem('hotstep_lireek_import');
+    try {
+      const json = JSON.parse(raw);
+      if (json.title !== undefined) setTitle(json.title);
+      if (json.prompt !== undefined) setLyrics(json.prompt);
+      if (json.style !== undefined) setStyle(json.style);
+      if (json.instrumental !== undefined) setInstrumental(json.instrumental);
+      if (json.bpm !== undefined) setBpm(json.bpm);
+      if (json.keyScale !== undefined) setKeyScale(json.keyScale);
+      if (json.duration !== undefined) setDuration(json.duration);
+      if (json.loraPath !== undefined) setLoraPath(json.loraPath);
+      if (json.loraScale !== undefined) setLoraScale(json.loraScale);
+      if (json.loraLoaded !== undefined) setLoraLoaded(json.loraLoaded);
+      if (json.advancedAdapters !== undefined) setAdvancedAdapters(json.advancedAdapters);
+      if (json.adapterSlots !== undefined) setAdapterSlots(json.adapterSlots);
+      if (json.autoMaster !== undefined) setAutoMaster(json.autoMaster);
+      if (json.masteringParams !== undefined) setMasteringParams(json.masteringParams);
+      console.log('[CreatePanel] Applied Lyric Studio import:', json.title);
+    } catch (e) {
+      console.error('[CreatePanel] Failed to parse Lyric Studio import:', e);
+    }
+  }, []);
+
   return (
     <div
       className="relative flex flex-col h-full bg-zinc-50 dark:bg-suno-panel w-full overflow-y-auto custom-scrollbar transition-colors duration-300"

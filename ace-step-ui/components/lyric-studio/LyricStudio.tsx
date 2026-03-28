@@ -381,6 +381,7 @@ export const LyricStudio: React.FC = () => {
 
   // ── Generate Audio from Lyrics ──────────────────────────────────────────
   const handleGenerateAudio = async (gen: Generation) => {
+    if (!token) { showToast('Not authenticated'); return; }
     setActionLoading(`audio-${gen.id}`);
     try {
       // Find the album preset for this generation's profile -> lyrics_set
@@ -391,33 +392,99 @@ export const LyricStudio: React.FC = () => {
         preset = res.preset;
       }
 
-      const payload: any = {
-        lyrics: gen.lyrics,
-        prompt: gen.caption || '',
-        audio_duration: gen.duration || 180,
+      const params: any = {
+        customMode: true,
+        lyrics: gen.lyrics || '',
+        style: gen.caption || '',
+        title: gen.title || '',
+        instrumental: false,
+        duration: gen.duration || 180,
       };
-      if (gen.bpm) payload.bpm = gen.bpm;
-      if (gen.key) payload.key_scale = gen.key;
+      if (gen.bpm) params.bpm = gen.bpm;
+      if (gen.key) params.keyScale = gen.key;
       if (preset?.adapter_path) {
-        payload.lireek_adapter_path = preset.adapter_path;
-        payload.lireek_adapter_scale = preset.adapter_scale;
+        params.loraPath = preset.adapter_path;
+        params.loraScale = preset.adapter_scale ?? 1.0;
+        params.loraLoaded = true;
+        // If we have group scales, send adapter slots for the backend
         if (preset.adapter_group_scales) {
-          payload.lireek_group_scales = preset.adapter_group_scales;
+          params.advancedAdapters = true;
+          params.adapterSlots = [{
+            slot: 0,
+            name: preset.adapter_path.split(/[\\/]/).pop() || 'lireek',
+            path: preset.adapter_path,
+            type: 'lokr',
+            scale: preset.adapter_scale ?? 1.0,
+            delta_keys: 0,
+            group_scales: preset.adapter_group_scales,
+          }];
         }
       }
       if (preset?.matchering_reference_path) {
-        payload.mastering_params = { mode: 'matchering', reference_file: preset.matchering_reference_path };
+        params.autoMaster = true;
+        params.masteringParams = { mode: 'matchering', reference_file: preset.matchering_reference_path };
       }
 
-      const res = await lireekApi.submitAudioGeneration(payload);
-      showToast(`Audio job queued: ${res.job_id}`);
+      const res = await generateApi.startGeneration(params, token);
+      const jobId = res.jobId || (res as any).job_id;
+      showToast(`Audio job queued: ${jobId}`);
       // Link the audio generation
-      await lireekApi.linkAudio(gen.id, res.job_id);
+      if (jobId) await lireekApi.linkAudio(gen.id, jobId);
     } catch (err) {
       showToast(`Audio generation failed: ${(err as Error).message}`);
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // ── Send Generation to Create Page ─────────────────────────────────────
+  const handleSendToCreate = async (gen: Generation) => {
+    // Find the album preset for adapter + matchering data
+    const profile = profiles.find(p => p.id === gen.profile_id);
+    let preset: AlbumPreset | null = null;
+    if (profile) {
+      try {
+        const res = await lireekApi.getPreset(profile.lyrics_set_id);
+        preset = res.preset;
+      } catch { /* ignore */ }
+    }
+
+    const importData: Record<string, any> = {
+      title: gen.title || '',
+      prompt: gen.lyrics || '',
+      style: gen.caption || '',
+      instrumental: false,
+    };
+    if (gen.bpm) importData.bpm = gen.bpm;
+    if (gen.key) importData.keyScale = gen.key;
+    if (gen.duration) importData.duration = gen.duration;
+    if (preset?.adapter_path) {
+      importData.loraPath = preset.adapter_path;
+      importData.loraScale = preset.adapter_scale ?? 1.0;
+      importData.loraLoaded = true;
+      if (preset.adapter_group_scales) {
+        importData.advancedAdapters = true;
+        importData.adapterSlots = [{
+          slot: 0,
+          name: preset.adapter_path.split(/[\\/]/).pop() || 'lireek',
+          path: preset.adapter_path,
+          type: 'lokr',
+          scale: preset.adapter_scale ?? 1.0,
+          delta_keys: 0,
+          group_scales: preset.adapter_group_scales,
+        }];
+      }
+    }
+    if (preset?.matchering_reference_path) {
+      importData.autoMaster = true;
+      importData.masteringParams = { mode: 'matchering', reference_file: preset.matchering_reference_path };
+    }
+
+    // Store in localStorage for CreatePanel to pick up
+    localStorage.setItem('hotstep_lireek_import', JSON.stringify(importData));
+    // Navigate to Create page
+    window.history.pushState({}, '', '/create');
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   // ── Get selected detail data (with lazy-load from cache) ───────────────
@@ -1262,6 +1329,14 @@ export const LyricStudio: React.FC = () => {
                 >
                   {actionLoading === `audio-${gen.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
                   Generate Audio
+                </button>
+                <button
+                  onClick={() => handleSendToCreate(gen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-sm font-medium transition-colors border border-amber-500/10"
+                  title="Send all generation data to the Create Page for further customization"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                  Send to Create
                 </button>
                 <button
                   onClick={() => handleDeleteGeneration(gen.id)}
