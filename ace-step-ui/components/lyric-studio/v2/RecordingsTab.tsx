@@ -46,8 +46,8 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
     [generations, filterGenerationId]
   );
 
-  // HARD LOCK: track which genKey we already fetched — prevents any possible re-fetch loop
-  const lastFetchedKey = useRef<string>('');
+  // Track in-flight load to prevent duplicates
+  const loadingRef = useRef(false);
 
   // Load audio generations — keyed only on genKey + token (stable strings)
   useEffect(() => {
@@ -55,12 +55,9 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
       setLoading(false);
       return;
     }
-    // Absolute guard: if we already fetched this exact key, skip
-    if (lastFetchedKey.current === genKey) {
-      setLoading(false); // Ensure we don't get stuck in loading state
-      return;
-    }
-    lastFetchedKey.current = genKey;
+    // Prevent concurrent loads
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
     let cancelled = false;
 
@@ -86,9 +83,10 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
           console.log(`[RecordingsTab] Job history has ${Object.keys(jobHistory).length} entries`);
         } catch { /* history not available */ }
 
+        if (cancelled) { loadingRef.current = false; return; }
+
         const results: SongGroup[] = [];
         for (const gen of gens) {
-          if (cancelled) return;
           try {
             console.log(`[RecordingsTab] Fetching audio gens for gen ${gen.id} "${gen.title}"...`);
             const res = await lireekApi.getAudioGenerations(gen.id);
@@ -96,7 +94,6 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
             if (res.audio_generations.length > 0) {
               const songs: Song[] = [];
               for (const ag of res.audio_generations) {
-                if (cancelled) return;
                 try {
                   const jobRes = await generateApi.getStatus(ag.job_id, token);
                   console.log(`[RecordingsTab] Job ${ag.job_id}: status=${jobRes?.status}, audioUrls=${jobRes?.result?.audioUrls?.length ?? 0}`);
@@ -169,6 +166,7 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
         console.error('[RecordingsTab] Failed to load:', err);
       } finally {
         if (!cancelled) setLoading(false);
+        loadingRef.current = false;
       }
     };
 
