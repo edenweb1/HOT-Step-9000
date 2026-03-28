@@ -105,7 +105,7 @@ export interface AlbumPreset {
 export interface AudioGeneration {
   id: number;
   generation_id: number;
-  job_id: string;
+  hotstep_job_id: string;
   created_at: string;
 }
 

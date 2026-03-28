@@ -88,12 +88,12 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
               const songs: Song[] = [];
               for (const ag of res.audio_generations) {
                 try {
-                  const jobRes = await generateApi.getStatus(ag.job_id, token);
-                  console.log(`[RecordingsTab] Job ${ag.job_id}: status=${jobRes?.status}, audioUrls=${jobRes?.result?.audioUrls?.length ?? 0}`);
+                  const jobRes = await generateApi.getStatus(ag.hotstep_job_id, token);
+                  console.log(`[RecordingsTab] Job ${ag.hotstep_job_id}: status=${jobRes?.status}, audioUrls=${jobRes?.result?.audioUrls?.length ?? 0}`);
                   if (jobRes?.status === 'succeeded' && jobRes.result?.audioUrls) {
                     for (const audioUrl of jobRes.result.audioUrls) {
                       songs.push({
-                        id: ag.job_id,
+                        id: ag.hotstep_job_id,
                         title: gen.title || 'Untitled',
                         style: gen.caption || '',
                         lyrics: gen.lyrics || '',
@@ -106,12 +106,12 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
                     }
                   } else {
                     // Fallback to history
-                    const hj = jobHistory[ag.job_id];
-                    console.log(`[RecordingsTab] History fallback for ${ag.job_id}: found=${!!hj}, status=${hj?.status}`);
+                    const hj = jobHistory[ag.hotstep_job_id];
+                    console.log(`[RecordingsTab] History fallback for ${ag.hotstep_job_id}: found=${!!hj}, status=${hj?.status}`);
                     if (hj?.status === 'succeeded' && hj.result?.audioUrls) {
                       for (const audioUrl of hj.result.audioUrls) {
                         songs.push({
-                          id: ag.job_id,
+                          id: ag.hotstep_job_id,
                           title: gen.title || 'Untitled',
                           style: gen.caption || '',
                           lyrics: gen.lyrics || '',
@@ -125,12 +125,12 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
                     }
                   }
                 } catch (err) {
-                  console.warn(`[RecordingsTab] getStatus failed for ${ag.job_id}:`, err);
-                  const hj = jobHistory[ag.job_id];
+                  console.warn(`[RecordingsTab] getStatus failed for ${ag.hotstep_job_id}:`, err);
+                  const hj = jobHistory[ag.hotstep_job_id];
                   if (hj?.status === 'succeeded' && hj.result?.audioUrls) {
                     for (const audioUrl of hj.result.audioUrls) {
                       songs.push({
-                        id: ag.job_id,
+                        id: ag.hotstep_job_id,
                         title: gen.title || 'Untitled',
                         style: gen.caption || '',
                         lyrics: gen.lyrics || '',
@@ -142,7 +142,7 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
                       });
                     }
                   } else {
-                    console.warn(`[RecordingsTab] Could not resolve job ${ag.job_id} — not in status or history`);
+                    console.warn(`[RecordingsTab] Could not resolve job ${ag.hotstep_job_id} — not in status or history`);
                   }
                 }
               }
