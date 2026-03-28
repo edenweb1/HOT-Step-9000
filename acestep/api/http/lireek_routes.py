@@ -235,6 +235,14 @@ def register_lireek_routes(app: FastAPI) -> None:
         from acestep.api.lireek.lireek_db import get_all_generations_with_context
         return {"generations": get_all_generations_with_context()}
 
+    @app.get("/api/lireek/generations/{generation_id}")
+    async def get_generation_detail(generation_id: int):
+        from acestep.api.lireek.lireek_db import get_generation
+        gen = get_generation(generation_id)
+        if not gen:
+            raise HTTPException(status_code=404, detail="Generation not found")
+        return gen
+
     @app.post("/api/lireek/profiles/{profile_id}/generate")
     async def generate_lyrics_endpoint(profile_id: int, req: GenerateRequest):
         """Generate new lyrics from a profile."""

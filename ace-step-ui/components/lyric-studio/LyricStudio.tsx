@@ -81,6 +81,10 @@ export const LyricStudio: React.FC = () => {
   // Prompt editor modal
   const [promptEditorOpen, setPromptEditorOpen] = useState(false);
 
+  // Detail cache — full data fetched on-demand when an item is selected
+  const [detailCache, setDetailCache] = useState<Record<string, any>>({});
+  const [detailLoading, setDetailLoading] = useState(false);
+
   // Album presets
   const [presets, setPresets] = useState<Record<number, AlbumPreset | null>>({});
   const [presetForm, setPresetForm] = useState<{
@@ -101,6 +105,7 @@ export const LyricStudio: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      setDetailCache({}); // Invalidate detail cache on refresh
       const [a, ls, p, g] = await Promise.all([
         lireekApi.listArtists(),
         lireekApi.listLyricsSets(),
@@ -387,10 +392,56 @@ export const LyricStudio: React.FC = () => {
     }
   };
 
-  // ── Get selected detail data ────────────────────────────────────────────
-  const getSelectedLyricsSet = () => lyricsSets.find(ls => ls.id === selectedItem?.id);
-  const getSelectedProfile = () => profiles.find(p => p.id === selectedItem?.id);
-  const getSelectedGeneration = () => generations.find(g => g.id === selectedItem?.id);
+  // ── Get selected detail data (with lazy-load from cache) ───────────────
+  const detailKey = selectedItem ? `${selectedItem.type}-${selectedItem.id}` : null;
+
+  const getSelectedLyricsSet = () => {
+    if (!selectedItem || selectedItem.type !== 'album') return undefined;
+    const cached = detailCache[`album-${selectedItem.id}`];
+    if (cached) return cached as LyricsSet;
+    return lyricsSets.find(ls => ls.id === selectedItem.id);
+  };
+  const getSelectedProfile = () => {
+    if (!selectedItem || selectedItem.type !== 'profile') return undefined;
+    const cached = detailCache[`profile-${selectedItem.id}`];
+    if (cached) return cached as Profile;
+    return profiles.find(p => p.id === selectedItem.id);
+  };
+  const getSelectedGeneration = () => {
+    if (!selectedItem || selectedItem.type !== 'generation') return undefined;
+    const cached = detailCache[`generation-${selectedItem.id}`];
+    if (cached) return cached as Generation;
+    return generations.find(g => g.id === selectedItem.id);
+  };
+
+  // Fetch full detail when selection changes
+  useEffect(() => {
+    if (!selectedItem) return;
+    const key = `${selectedItem.type}-${selectedItem.id}`;
+    if (detailCache[key]) return; // already cached
+
+    const fetchDetail = async () => {
+      setDetailLoading(true);
+      try {
+        let data: any;
+        if (selectedItem.type === 'album') {
+          data = await lireekApi.getLyricsSet(selectedItem.id);
+        } else if (selectedItem.type === 'profile') {
+          data = await lireekApi.getProfile(selectedItem.id);
+        } else if (selectedItem.type === 'generation') {
+          data = await lireekApi.getGeneration(selectedItem.id);
+        } else {
+          return;
+        }
+        setDetailCache(prev => ({ ...prev, [key]: data }));
+      } catch (err) {
+        console.error('Failed to load detail:', err);
+      } finally {
+        setDetailLoading(false);
+      }
+    };
+    fetchDetail();
+  }, [selectedItem?.type, selectedItem?.id]);
 
   // ── Render ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -671,7 +722,7 @@ export const LyricStudio: React.FC = () => {
 
         {selectedItem?.type === 'album' && (() => {
           const ls = getSelectedLyricsSet();
-          if (!ls) return <EmptyDetail />;
+          if (!ls) return detailLoading ? <div className="flex items-center justify-center p-12 text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading album…</div> : <EmptyDetail />;
           const songs = parseSongs(ls.songs);
           const albumProfiles = profiles.filter(p => p.lyrics_set_id === ls.id);
           return (
@@ -758,7 +809,7 @@ export const LyricStudio: React.FC = () => {
                         {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-500 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-zinc-500 flex-shrink-0" />}
                         <span className="text-xs text-zinc-600 w-5 text-right">{i + 1}</span>
                         <span className="text-sm text-white truncate flex-1">{song.title}</span>
-                        <span className="text-[10px] text-zinc-600">{song.lyrics?.length || 0} chars</span>
+                        <span className="text-[10px] text-zinc-600">{(song as any).chars || song.lyrics?.length || 0} chars</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRemoveSong(ls.id, i, song.title); }}
                           className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all"
@@ -782,7 +833,8 @@ export const LyricStudio: React.FC = () => {
 
         {selectedItem?.type === 'profile' && (() => {
           const profile = getSelectedProfile();
-          if (!profile) return <EmptyDetail />;
+          if (!profile) return detailLoading ? <div className="flex items-center justify-center p-12 text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading profile…</div> : <EmptyDetail />;
+          if (!profile.profile_data) return <div className="flex items-center justify-center p-12 text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading profile data…</div>;
           const pd = profile.profile_data || {};
           const profileGens = generations.filter(g => g.profile_id === profile.id);
           return (
@@ -955,7 +1007,8 @@ export const LyricStudio: React.FC = () => {
 
         {selectedItem?.type === 'generation' && (() => {
           const gen = getSelectedGeneration();
-          if (!gen) return <EmptyDetail />;
+          if (!gen) return detailLoading ? <div className="flex items-center justify-center p-12 text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading generation…</div> : <EmptyDetail />;
+          if (gen.lyrics === undefined) return <div className="flex items-center justify-center p-12 text-zinc-500"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading lyrics…</div>;
           return (
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">

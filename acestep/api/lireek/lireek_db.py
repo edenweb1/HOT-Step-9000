@@ -235,10 +235,11 @@ def get_lyrics_sets(artist_id: Optional[int] = None) -> list[dict[str, Any]]:
         results = []
         for r in rows:
             d = _row_to_dict(r)
-            # Keep songs as-is (JSON string) for the frontend to parse
+            # For the listing, strip full lyrics — only return titles + char counts
             songs_raw = d.get("songs", "[]")
             songs = json.loads(songs_raw) if isinstance(songs_raw, str) else songs_raw
             d["total_songs"] = len(songs) if isinstance(songs, list) else 0
+            d["songs"] = json.dumps([{"title": s.get("title", ""), "chars": len(s.get("lyrics", ""))} for s in songs]) if isinstance(songs, list) else "[]"
             results.append(d)
         return results
     finally:
@@ -347,7 +348,8 @@ def get_profiles(lyrics_set_id: Optional[int] = None) -> list[dict[str, Any]]:
         results = []
         for r in rows:
             d = _row_to_dict(r)
-            d["profile_data"] = json.loads(d["profile_data"])
+            # Strip heavy profile_data from list — fetch via get_profile(id) for full data
+            d.pop("profile_data", None)
             results.append(d)
         return results
     finally:
@@ -456,7 +458,33 @@ def get_generations(
             rows = conn.execute(
                 "SELECT * FROM generations ORDER BY created_at DESC"
             ).fetchall()
-        return [_row_to_dict(r) for r in rows]
+        results = []
+        for r in rows:
+            d = _row_to_dict(r)
+            # Strip heavy text from list — fetch via get_generation(id) for full data
+            d.pop("lyrics", None)
+            d.pop("system_prompt", None)
+            d.pop("user_prompt", None)
+            results.append(d)
+        return results
+    finally:
+        conn.close()
+
+
+def get_generation(generation_id: int) -> Optional[dict[str, Any]]:
+    """Get a single generation with full data (including lyrics)."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT g.*, a.name AS artist_name, ls.album "
+            "FROM generations g "
+            "JOIN profiles p ON p.id = g.profile_id "
+            "JOIN lyrics_sets ls ON ls.id = p.lyrics_set_id "
+            "JOIN artists a ON a.id = ls.artist_id "
+            "WHERE g.id = ?",
+            (generation_id,),
+        ).fetchone()
+        return _row_to_dict(row) if row else None
     finally:
         conn.close()
 
@@ -473,7 +501,14 @@ def get_all_generations_with_context() -> list[dict[str, Any]]:
             "JOIN artists a ON a.id = ls.artist_id "
             "ORDER BY g.created_at DESC"
         ).fetchall()
-        return [_row_to_dict(r) for r in rows]
+        results = []
+        for r in rows:
+            d = _row_to_dict(r)
+            d.pop("lyrics", None)
+            d.pop("system_prompt", None)
+            d.pop("user_prompt", None)
+            results.append(d)
+        return results
     finally:
         conn.close()
 
