@@ -1,0 +1,240 @@
+/**
+ * useAudioGeneration.ts — Encapsulates the full audio generation flow
+ * for Lyric Studio V2.
+ *
+ * Extracted from V1's handleGenerateAudio + handleSendToCreate in LyricStudio.tsx.
+ * Handles: preset loading → param merging → adapter loading → trigger word →
+ * matchering → generation → audio linking.
+ */
+
+import { useCallback } from 'react';
+import { lireekApi, Generation, Profile, AlbumPreset } from '../../../services/lyricStudioApi';
+import { generateApi } from '../../../services/api';
+import { useAuth } from '../../../context/AuthContext';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function readPersisted(key: string): any {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw !== null ? JSON.parse(raw) : undefined;
+  } catch { return undefined; }
+}
+
+function mergeCreatePanelSettings(params: Record<string, any>): void {
+  // Generation engine settings — stored by CreatePanel with 'ace-' prefix
+  const map: [string, string][] = [
+    ['ace-inferenceSteps', 'inferenceSteps'],
+    ['ace-inferMethod', 'inferMethod'],
+    ['ace-scheduler', 'scheduler'],
+    ['ace-guidanceScale', 'guidanceScale'],
+    ['ace-shift', 'shift'],
+    ['ace-guidanceMode', 'guidanceMode'],
+    ['ace-audioFormat', 'audioFormat'],
+    ['ace-randomSeed', 'randomSeed'],
+    ['ace-enableNormalization', 'enableNormalization'],
+    ['ace-normalizationDb', 'normalizationDb'],
+    ['ace-vocalLanguage', 'vocalLanguage'],
+    ['ace-vocalGender', 'vocalGender'],
+    // LM settings
+    ['ace-lmTemperature', 'lmTemperature'],
+    ['ace-lmCfgScale', 'lmCfgScale'],
+    ['ace-lmTopK', 'lmTopK'],
+    ['ace-lmTopP', 'lmTopP'],
+    ['ace-lmModel', 'lmModel'],
+    // Advanced guidance
+    ['ace-useCotMetas', 'useCotMetas'],
+    ['ace-useCotCaption', 'useCotCaption'],
+    ['ace-useCotLanguage', 'useCotLanguage'],
+    // Vocoder
+    ['ace-vocoderModel', 'vocoderModel'],
+    // Thinking
+    ['ace-thinking', 'thinking'],
+  ];
+  for (const [storageKey, paramKey] of map) {
+    const val = readPersisted(storageKey);
+    if (val !== undefined && val !== null && val !== '') {
+      params[paramKey] = val;
+    }
+  }
+  // Always enable lyric sync
+  params.getLrc = true;
+  // Cover art: global setting
+  params.generateCoverArt = localStorage.getItem('generate_cover_art') === 'true';
+}
+
+function applyTriggerWord(params: Record<string, any>, adapterPath: string): void {
+  const useFilename = localStorage.getItem('ace-globalTriggerUseFilename') === 'true';
+  const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
+
+  if (!useFilename) return;
+
+  const fileName = adapterPath.replace(/\\/g, '/').split('/').pop() || '';
+  const triggerWord = fileName.replace(/\.safetensors$/i, '');
+  if (!triggerWord) return;
+
+  const current = ((params.style as string) || '').trim();
+  if (current.toLowerCase().includes(triggerWord.toLowerCase())) return;
+
+  if (placement === 'replace') {
+    params.style = triggerWord;
+  } else if (placement === 'append') {
+    params.style = current ? `${current}, ${triggerWord}` : triggerWord;
+  } else {
+    params.style = current ? `${triggerWord}, ${current}` : triggerWord;
+  }
+  console.log(`[LyricStudioV2] Trigger word '${triggerWord}' ${placement}ed → '${params.style}'`);
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+interface UseAudioGenerationOptions {
+  profiles: Profile[];
+  showToast: (msg: string) => void;
+  onJobLinked?: (generationId: number, jobId: string) => void;
+}
+
+export function useAudioGeneration({ profiles, showToast, onJobLinked }: UseAudioGenerationOptions) {
+  const { token } = useAuth();
+
+  /**
+   * Full audio generation flow: load preset → build params → load adapter →
+   * trigger word → matchering → start gen → link audio.
+   */
+  const generateAudio = useCallback(async (gen: Generation): Promise<string | null> => {
+    if (!token) { showToast('Not authenticated'); return null; }
+
+    try {
+      // 1) Find album preset for this generation
+      const profile = profiles.find(p => p.id === gen.profile_id);
+      let preset: AlbumPreset | null = null;
+      if (profile) {
+        const res = await lireekApi.getPreset(profile.lyrics_set_id);
+        preset = res.preset;
+      }
+
+      // 2) Build base params
+      const params: Record<string, any> = {
+        customMode: true,
+        lyrics: gen.lyrics || '',
+        style: gen.caption || '',
+        title: gen.title || '',
+        instrumental: false,
+        duration: gen.duration || 180,
+      };
+      if (gen.bpm) params.bpm = gen.bpm;
+      if (gen.key) params.keyScale = gen.key;
+
+      // 3) Merge persisted CreatePanel settings
+      mergeCreatePanelSettings(params);
+
+      // 4) Load adapter from album preset
+      if (preset?.adapter_path) {
+        try {
+          const loraStatus = await generateApi.getLoraStatus(token);
+          const existingSlot = loraStatus?.advanced?.slots?.find(
+            (s: any) => s.path === preset!.adapter_path
+          );
+
+          if (existingSlot) {
+            console.log('[LyricStudioV2] Adapter already loaded, skipping reload');
+            params.loraLoaded = true;
+            params.loraPath = preset.adapter_path;
+            params.loraScale = preset.adapter_scale ?? 1.0;
+            // Apply group scales if they differ
+            if (preset.adapter_group_scales) {
+              try {
+                await generateApi.setSlotGroupScales({
+                  slot: existingSlot.slot,
+                  ...preset.adapter_group_scales,
+                }, token);
+              } catch { /* non-critical */ }
+            }
+          } else {
+            // Unload existing adapters first
+            if (loraStatus?.advanced?.slots && loraStatus.advanced.slots.length > 0) {
+              showToast('Switching adapter...');
+              await generateApi.unloadLora(token);
+            } else {
+              showToast('Loading adapter...');
+            }
+            await generateApi.loadLora({
+              lora_path: preset.adapter_path,
+              scale: preset.adapter_scale ?? 1.0,
+              ...(preset.adapter_group_scales ? { group_scales: preset.adapter_group_scales } : {}),
+            }, token);
+            params.loraLoaded = true;
+            params.loraPath = preset.adapter_path;
+            params.loraScale = preset.adapter_scale ?? 1.0;
+          }
+        } catch (loadErr) {
+          console.warn('[LyricStudioV2] Failed to load adapter, continuing without:', loadErr);
+          showToast('Warning: adapter failed to load, generating without');
+        }
+
+        // 5) Trigger word
+        applyTriggerWord(params, preset.adapter_path);
+      }
+
+      // 6) Matchering
+      if (preset?.matchering_reference_path) {
+        params.autoMaster = true;
+        params.masteringParams = { mode: 'matchering', reference_file: preset.matchering_reference_path };
+      }
+
+      // 7) Start generation
+      const res = await generateApi.startGeneration(params as any, token);
+      const jobId = res.jobId || (res as any).job_id;
+      showToast(`Audio job queued: ${jobId}`);
+
+      // 8) Link audio to lyric generation
+      if (jobId) {
+        await lireekApi.linkAudio(gen.id, jobId);
+        onJobLinked?.(gen.id, jobId);
+      }
+
+      return jobId;
+    } catch (err) {
+      showToast(`Audio generation failed: ${(err as Error).message}`);
+      return null;
+    }
+  }, [token, profiles, showToast, onJobLinked]);
+
+  /**
+   * Prepare generation data and send to CreatePanel for manual tweaking.
+   */
+  const sendToCreate = useCallback(async (gen: Generation): Promise<void> => {
+    const profile = profiles.find(p => p.id === gen.profile_id);
+    let preset: AlbumPreset | null = null;
+    if (profile) {
+      try {
+        const res = await lireekApi.getPreset(profile.lyrics_set_id);
+        preset = res.preset;
+      } catch { /* ignore */ }
+    }
+
+    const importData: Record<string, any> = {
+      title: gen.title || '',
+      prompt: gen.lyrics || '',
+      style: gen.caption || '',
+      instrumental: false,
+    };
+    if (gen.bpm) importData.bpm = gen.bpm;
+    if (gen.key) importData.keyScale = gen.key;
+    if (gen.duration) importData.duration = gen.duration;
+    if (preset?.adapter_path) {
+      importData.loraPath = preset.adapter_path;
+      importData.loraScale = preset.adapter_scale ?? 1.0;
+    }
+    if (preset?.matchering_reference_path) {
+      importData.autoMaster = true;
+      importData.masteringParams = { mode: 'matchering', reference_file: preset.matchering_reference_path };
+    }
+
+    localStorage.setItem('hotstep_lireek_import', JSON.stringify(importData));
+    window.history.pushState({}, '', '/create');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, [profiles]);
+
+  return { generateAudio, sendToCreate };
+}

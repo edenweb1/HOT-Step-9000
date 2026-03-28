@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Pencil, Music2, Wand2, Play, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Pencil, Music2, Wand2, Play, Loader2, ChevronDown, ChevronRight, Send } from 'lucide-react';
 import { lireekApi, Generation, Profile } from '../../../services/lyricStudioApi';
 
 interface WrittenSongsTabProps {
@@ -7,11 +7,12 @@ interface WrittenSongsTabProps {
   profiles: Profile[];
   onRefresh: () => void;
   onGenerateAudio: (gen: Generation) => void;
+  onSendToCreate?: (gen: Generation) => void;
   showToast: (msg: string) => void;
 }
 
 export const WrittenSongsTab: React.FC<WrittenSongsTabProps> = ({
-  generations, profiles, onRefresh, onGenerateAudio, showToast,
+  generations, profiles, onRefresh, onGenerateAudio, onSendToCreate, showToast,
 }) => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -262,6 +263,15 @@ export const WrittenSongsTab: React.FC<WrittenSongsTabProps> = ({
                             <Play className="w-3 h-3" />
                             Generate Audio
                           </button>
+                          {onSendToCreate && (
+                            <button
+                              onClick={() => onSendToCreate(gen)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-blue-400 hover:bg-blue-500/10 transition-colors"
+                            >
+                              <Send className="w-3 h-3" />
+                              Send to Create
+                            </button>
+                          )}
                           <div className="flex-1" />
                           <button
                             onClick={() => handleDelete(gen)}

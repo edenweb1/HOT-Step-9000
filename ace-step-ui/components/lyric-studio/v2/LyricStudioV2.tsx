@@ -11,6 +11,7 @@ import { SourceLyricsTab } from './SourceLyricsTab';
 import { ProfilesTab } from './ProfilesTab';
 import { WrittenSongsTab } from './WrittenSongsTab';
 import { RecordingsTab } from './RecordingsTab';
+import { useAudioGeneration } from './useAudioGeneration';
 import { Song } from '../../../types';
 
 function parseSongs(songs: SongLyric[] | string): SongLyric[] {
@@ -196,10 +197,29 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     }
   }, [loadArtists, loadAlbums, nav.selectedArtist, nav.level, handleSelectArtist, showToast]);
 
-  const handleGenerateAudio = useCallback((gen: Generation) => {
-    showToast(`Audio generation for "${gen.title}" — use the V1 view for now`);
-    // TODO: Port handleGenerateAudio from V1 in Phase 4
-  }, [showToast]);
+  const refreshAlbumData = useCallback(() => {
+    if (nav.selectedAlbum) {
+      loadAlbumData(nav.selectedAlbum.id);
+    }
+  }, [nav.selectedAlbum, loadAlbumData]);
+
+  // ── Audio generation hook ──
+  const { generateAudio, sendToCreate } = useAudioGeneration({
+    profiles,
+    showToast,
+    onJobLinked: (genId, jobId) => {
+      console.log(`[LyricStudioV2] Audio job ${jobId} linked to generation ${genId}`);
+    },
+  });
+
+  const handleGenerateAudio = useCallback(async (gen: Generation) => {
+    await generateAudio(gen);
+    refreshAlbumData();
+  }, [generateAudio, refreshAlbumData]);
+
+  const handleSendToCreate = useCallback(async (gen: Generation) => {
+    await sendToCreate(gen);
+  }, [sendToCreate]);
 
   const handlePlaySong = useCallback((song: Song) => {
     onPlaySong?.(song);
@@ -214,12 +234,6 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     setFetchModalPrefill(undefined);
     setFetchModalOpen(true);
   }, []);
-
-  const refreshAlbumData = useCallback(() => {
-    if (nav.selectedAlbum) {
-      loadAlbumData(nav.selectedAlbum.id);
-    }
-  }, [nav.selectedAlbum, loadAlbumData]);
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -330,6 +344,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                     profiles={profiles}
                     onRefresh={refreshAlbumData}
                     onGenerateAudio={handleGenerateAudio}
+                    onSendToCreate={handleSendToCreate}
                     showToast={showToast}
                   />
                 )}
