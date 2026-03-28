@@ -70,9 +70,32 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     try {
       const res = await lireekApi.listArtists();
       setArtists(res.artists);
+      setArtistsLoading(false);
+
+      // Auto-fetch missing images in the background (non-blocking)
+      const missing = res.artists.filter(a => !a.image_url);
+      if (missing.length > 0) {
+        console.log(`[LyricStudioV2] Fetching images for ${missing.length} artists...`);
+        const batchSize = 3;
+        for (let i = 0; i < missing.length; i += batchSize) {
+          const batch = missing.slice(i, i + batchSize);
+          const results = await Promise.allSettled(
+            batch.map(a => lireekApi.refreshArtistImage(a.id))
+          );
+          setArtists(prev => prev.map(artist => {
+            const idx = batch.findIndex(b => b.id === artist.id);
+            if (idx === -1) return artist;
+            const result = results[idx];
+            if (result.status === 'fulfilled' && result.value.image_url) {
+              return { ...artist, image_url: result.value.image_url };
+            }
+            return artist;
+          }));
+        }
+        console.log('[LyricStudioV2] Image refresh complete');
+      }
     } catch (err) {
       console.error('[LyricStudioV2] Failed to load artists:', err);
-    } finally {
       setArtistsLoading(false);
     }
   }, []);
@@ -257,7 +280,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
 
   // ── Render ──
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="h-full w-full flex flex-col relative bg-zinc-950">
       {/* Toast */}
       {toast && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-zinc-800/90 backdrop-blur-sm border border-white/10 text-sm text-white shadow-2xl ls2-slide-up">
