@@ -76,6 +76,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
   const [activeTab, setActiveTab] = useState<TabId>('source-lyrics');
   const [recordingsFilter, setRecordingsFilter] = useState<number | null>(null);
   const [songCount, setSongCount] = useState(0);
+  const [recordingsRefreshKey, setRecordingsRefreshKey] = useState(0);
 
   // ── URL routing flag to prevent pushState during initial restore ──
   const isRestoringUrl = useRef(false);
@@ -585,6 +586,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                   filterGenerationId={recordingsFilter}
                   onClearFilter={() => setRecordingsFilter(null)}
                   onSongCountChange={setSongCount}
+                  refreshKey={recordingsRefreshKey}
                 />
               </div>
             </div>
@@ -616,6 +618,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
         activeJobs={activeJobs}
         onJobComplete={(jobId) => {
           refreshAlbumData();
+          setRecordingsRefreshKey(k => k + 1);
         }}
         onJobRemove={(jobId) => {
           setActiveJobs(prev => prev.filter(j => j.jobId !== jobId));

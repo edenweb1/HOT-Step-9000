@@ -18,10 +18,11 @@ interface RecordingsTabProps {
   filterGenerationId?: number | null;
   onClearFilter?: () => void;
   onSongCountChange?: (count: number) => void;
+  refreshKey?: number;
 }
 
 export const RecordingsTab: React.FC<RecordingsTabProps> = ({
-  generations, onPlaySong, showToast, filterGenerationId, onClearFilter, onSongCountChange,
+  generations, onPlaySong, showToast, filterGenerationId, onClearFilter, onSongCountChange, refreshKey = 0,
 }) => {
   const { token } = useAuth();
   const [groups, setGroups] = useState<SongGroup[]>([]);
@@ -33,11 +34,11 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
   const generationsRef = useRef(generations);
   generationsRef.current = generations;
 
-  // Stable key: only re-fetch when the set of generation IDs or filter changes
+  // Stable key: only re-fetch when the set of generation IDs, filter, or refreshKey changes
   const genKey = useMemo(() => {
     const ids = generations.map(g => g.id).sort().join(',');
-    return `${ids}|${filterGenerationId ?? 'all'}`;
-  }, [generations, filterGenerationId]);
+    return `${ids}|${filterGenerationId ?? 'all'}|${refreshKey}`;
+  }, [generations, filterGenerationId, refreshKey]);
 
   // Filtered view for rendering (cheap, no effect dependency)
   const filteredGenerations = useMemo(() =>
