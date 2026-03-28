@@ -90,6 +90,7 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
         for (const gen of gens) {
           if (cancelled) return;
           try {
+            console.log(`[RecordingsTab] Fetching audio gens for gen ${gen.id} "${gen.title}"...`);
             const res = await lireekApi.getAudioGenerations(gen.id);
             console.log(`[RecordingsTab] Gen ${gen.id} "${gen.title}" → ${res.audio_generations.length} audio gens`);
             if (res.audio_generations.length > 0) {

@@ -7,23 +7,33 @@ const API_BASE = '';
 async function api<T>(endpoint: string, options: {
   method?: string;
   body?: unknown;
+  timeoutMs?: number;
 } = {}): Promise<T> {
-  const { method = 'GET', body } = options;
+  const { method = 'GET', body, timeoutMs = 10000 } = options;
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
-  });
+  // Abort controller with timeout to prevent connection pool hangs
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.detail || error.error || error.message || `Request failed (${response.status})`);
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.detail || error.error || error.message || `Request failed (${response.status})`);
+    }
+
+    return response.json();
+  } finally {
+    clearTimeout(timer);
   }
-
-  return response.json();
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
