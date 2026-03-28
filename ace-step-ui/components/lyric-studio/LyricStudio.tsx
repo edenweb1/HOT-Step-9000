@@ -1343,6 +1343,8 @@ export const LyricStudio: React.FC = () => {
           setPresetBrowserOpen(false);
         }}
         mode="file"
+        filter={presetBrowserTarget === 'matchering' ? 'audio' : 'adapters'}
+        title={presetBrowserTarget === 'matchering' ? 'Select Reference Audio' : 'Select Adapter File'}
       />
     </div>
   );

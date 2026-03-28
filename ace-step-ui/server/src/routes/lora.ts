@@ -189,6 +189,14 @@ router.get('/detect-type', authMiddleware, async (req: AuthenticatedRequest, res
 router.get('/browse-dir', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     let dir = (req.query.path as string || '').trim();
+    const filter = (req.query.filter as string || 'adapters').toLowerCase();
+
+    // File extensions based on filter mode
+    const FILTER_EXTENSIONS: Record<string, Set<string>> = {
+      adapters: new Set(['.safetensors']),
+      audio: new Set(['.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac']),
+    };
+    const allowedExts = FILTER_EXTENSIONS[filter] || FILTER_EXTENSIONS.adapters;
 
     // Default to user's home directory
     if (!dir) {
@@ -216,12 +224,15 @@ router.get('/browse-dir', authMiddleware, async (req: AuthenticatedRequest, res:
 
         if (item.isDirectory()) {
           entries.push({ name: item.name, path: fullPath, type: 'dir' });
-        } else if (item.name.toLowerCase().endsWith('.safetensors')) {
-          try {
-            const stat = statSync(fullPath);
-            entries.push({ name: item.name, path: fullPath, type: 'file', size: stat.size });
-          } catch {
-            entries.push({ name: item.name, path: fullPath, type: 'file' });
+        } else {
+          const ext = item.name.substring(item.name.lastIndexOf('.')).toLowerCase();
+          if (allowedExts.has(ext)) {
+            try {
+              const stat = statSync(fullPath);
+              entries.push({ name: item.name, path: fullPath, type: 'file', size: stat.size });
+            } catch {
+              entries.push({ name: item.name, path: fullPath, type: 'file' });
+            }
           }
         }
       }

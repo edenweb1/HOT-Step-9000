@@ -17,10 +17,14 @@ interface FileBrowserModalProps {
     onClose: () => void;
     /** Called with the selected path (file or folder) */
     onSelect: (path: string) => void;
-    /** 'file' = only .safetensors selectable, 'folder' = only directories */
+    /** 'file' = only filtered files selectable, 'folder' = only directories */
     mode: 'file' | 'folder';
     /** Optional starting directory */
     startPath?: string;
+    /** File filter: 'adapters' (default) shows .safetensors, 'audio' shows audio files */
+    filter?: string;
+    /** Custom title for the modal header */
+    title?: string;
 }
 
 function formatSize(bytes?: number): string {
@@ -40,7 +44,7 @@ function saveLastDir(dir: string) {
 }
 
 export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
-    open, onClose, onSelect, mode, startPath,
+    open, onClose, onSelect, mode, startPath, filter, title,
 }) => {
     const { token } = useAuth();
     const [currentDir, setCurrentDir] = useState(startPath || '');
@@ -54,7 +58,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
         setLoading(true);
         setError(null);
         try {
-            const result = await generateApi.browseDir(dir, token);
+            const result = await generateApi.browseDir(dir, token, filter);
             setCurrentDir(result.current);
             setPathInput(result.current);
             setEntries(result.entries);
@@ -102,7 +106,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-white/5">
                     <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
-                        {mode === 'file' ? 'Select Adapter File' : 'Select Adapter Folder'}
+                        {title || (mode === 'file' ? 'Select File' : 'Select Folder')}
                     </h3>
                     <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
                         <X size={16} />
@@ -178,7 +182,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
                             ))}
                             {entries.length === 0 && !loading && (
                                 <div className="py-8 text-center text-xs text-zinc-400">
-                                    No folders or .safetensors files found
+                                    No matching files found
                                 </div>
                             )}
                         </div>

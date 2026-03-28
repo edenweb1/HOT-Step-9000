@@ -554,11 +554,11 @@ export const generateApi = {
     folder: string;
   }> => api(`/api/lora/list-files?folder=${encodeURIComponent(folder)}`, { token }),
 
-  // In-browser file/folder browser — lists directories and .safetensors files
-  browseDir: (path: string, token: string): Promise<{
+  // In-browser file/folder browser — lists directories and filtered files
+  browseDir: (path: string, token: string, filter?: string): Promise<{
     current: string;
     entries: Array<{ name: string; path: string; type: 'dir' | 'file'; size?: number }>;
-  }> => api(`/api/lora/browse-dir?path=${encodeURIComponent(path)}`, { token }),
+  }> => api(`/api/lora/browse-dir?path=${encodeURIComponent(path)}${filter ? `&filter=${encodeURIComponent(filter)}` : ''}`, { token }),
 
   // Detect adapter type from file metadata (safetensors header / adapter_config.json)
   detectAdapterType: (path: string, token: string): Promise<{

@@ -605,21 +605,47 @@ def register_lireek_routes(app: FastAPI) -> None:
     @app.get("/api/lireek/lyrics-sets/{lyrics_set_id}/preset")
     async def get_album_preset(lyrics_set_id: int):
         from acestep.api.lireek.lireek_db import get_album_preset
-        preset = get_album_preset(lyrics_set_id)
-        if not preset:
+        raw = get_album_preset(lyrics_set_id)
+        if not raw:
             return {"preset": None}
+        # Map DB column names → frontend-expected keys
+        scales = raw.get("adapter_scales") or {}
+        preset = {
+            "id": raw.get("id"),
+            "lyrics_set_id": raw.get("lyrics_set_id"),
+            "adapter_path": raw.get("adapter_path"),
+            "adapter_scale": scales.get("scale", 1.0),
+            "adapter_group_scales": scales.get("group_scales"),
+            "matchering_reference_path": raw.get("matchering_ref_path"),
+            "updated_at": raw.get("updated_at", ""),
+        }
         return {"preset": preset}
 
     @app.put("/api/lireek/lyrics-sets/{lyrics_set_id}/preset")
     async def upsert_album_preset(lyrics_set_id: int, req: AlbumPresetUpdate):
         from acestep.api.lireek.lireek_db import upsert_album_preset
-        preset = upsert_album_preset(
+        # Combine adapter_scale + adapter_group_scales into single DB blob
+        adapter_scales = {
+            "scale": req.adapter_scale,
+            "group_scales": req.adapter_group_scales or {"self_attn": 1.0, "cross_attn": 1.0, "mlp": 1.0},
+        }
+        raw = upsert_album_preset(
             lyrics_set_id=lyrics_set_id,
             adapter_path=req.adapter_path,
-            adapter_scale=req.adapter_scale,
-            adapter_group_scales=req.adapter_group_scales,
-            matchering_reference_path=req.matchering_reference_path,
+            adapter_scales=adapter_scales,
+            matchering_ref_path=req.matchering_reference_path,
         )
+        # Map back for response
+        scales = raw.get("adapter_scales") or {}
+        preset = {
+            "id": raw.get("id"),
+            "lyrics_set_id": raw.get("lyrics_set_id"),
+            "adapter_path": raw.get("adapter_path"),
+            "adapter_scale": scales.get("scale", 1.0),
+            "adapter_group_scales": scales.get("group_scales"),
+            "matchering_reference_path": raw.get("matchering_ref_path"),
+            "updated_at": raw.get("updated_at", ""),
+        }
         return {"preset": preset}
 
     @app.delete("/api/lireek/lyrics-sets/{lyrics_set_id}/preset")
