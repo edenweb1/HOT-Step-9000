@@ -81,8 +81,9 @@ export const LiveVisualizer: React.FC<LiveVisualizerProps> = ({
         return () => window.removeEventListener('storage', onStorage);
     }, []);
 
-    // Preset state
+    // Preset state — dimmed (background) instances always use Random for variety
     const [selectedPreset, setSelectedPreset] = useState<PresetType | 'Random'>(() => {
+        if (dimmed) return 'Random';
         const saved = localStorage.getItem('visualizer_preset');
         if (saved === 'Random') return 'Random';
         if (saved && ALL_PRESETS.includes(saved as PresetType)) return saved as PresetType;
@@ -90,9 +91,11 @@ export const LiveVisualizer: React.FC<LiveVisualizerProps> = ({
     });
 
     const [currentPreset, setCurrentPreset] = useState<PresetType>(() => {
+        // Dimmed instances always start with a random preset from the enabled pool
+        const pool = getEnabledPresets();
+        if (dimmed) return pool[Math.floor(Math.random() * pool.length)];
         const saved = localStorage.getItem('visualizer_preset');
         if (saved && saved !== 'Random' && ALL_PRESETS.includes(saved as PresetType)) return saved as PresetType;
-        const pool = getEnabledPresets();
         return pool[Math.floor(Math.random() * pool.length)];
     });
 

@@ -104,6 +104,45 @@ router.get('/:id/audio', optionalAuthMiddleware, async (req: AuthenticatedReques
   }
 });
 
+// Look up DB songs by audio URLs (batch) — used by RecordingsTab to get cover art, originalAudioUrl, etc.
+router.post('/by-urls', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { audioUrls } = req.body as { audioUrls: string[] };
+    if (!Array.isArray(audioUrls) || audioUrls.length === 0) {
+      res.json({ songs: [] });
+      return;
+    }
+    // Build parameterised query for the URL list
+    const placeholders = audioUrls.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await pool.query(
+      `SELECT s.id, s.title, s.lyrics, s.style, s.caption, s.audio_url, s.cover_url,
+              s.duration, s.bpm, s.key_scale, s.time_signature, s.tags, s.generation_params,
+              s.source, s.created_at
+       FROM songs s
+       WHERE s.user_id = $1 AND s.audio_url IN (${placeholders})`,
+      [req.user!.id, ...audioUrls]
+    );
+    const songs = result.rows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      lyrics: r.lyrics || '',
+      style: r.style || '',
+      audioUrl: r.audio_url,
+      coverUrl: r.cover_url || '',
+      duration: r.duration?.toString() || '0',
+      createdAt: r.created_at,
+      tags: typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []),
+      generationParams: typeof r.generation_params === 'string'
+        ? JSON.parse(r.generation_params || '{}')
+        : (r.generation_params || {}),
+    }));
+    res.json({ songs });
+  } catch (error) {
+    console.error('Fetch songs by URLs error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Helper: build ffmpeg metadata args from song data
 function buildMetadataArgs(song: Record<string, unknown>, creator: string, format: string): string[] {
   const args: string[] = [];

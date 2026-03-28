@@ -252,6 +252,26 @@ export const songsApi = {
 
   deleteComment: (commentId: string, token: string): Promise<{ success: boolean }> =>
     api(`/api/songs/comments/${commentId}`, { method: 'DELETE', token }),
+
+  /** Batch-fetch DB song records by audio URL — returns full Song objects with coverUrl, generationParams, etc. */
+  getSongsByUrls: async (audioUrls: string[], token: string): Promise<{ songs: Song[] }> => {
+    const result = await api('/api/songs/by-urls', { method: 'POST', body: { audioUrls }, token }) as { songs: any[] };
+    return {
+      songs: (result.songs || []).map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        lyrics: s.lyrics || '',
+        style: s.style || '',
+        audioUrl: s.audioUrl,
+        coverUrl: s.coverUrl || '',
+        duration: s.duration?.toString() || '0',
+        createdAt: new Date(s.createdAt),
+        created_at: s.createdAt,
+        tags: s.tags || [],
+        generationParams: s.generationParams,
+      })),
+    };
+  },
 };
 
 interface Comment {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Trash2, Headphones, ChevronDown, ChevronRight, Loader2, Clock, X, Filter, Download } from 'lucide-react';
 import { lireekApi, Generation, AudioGeneration } from '../../../services/lyricStudioApi';
-import { generateApi } from '../../../services/api';
+import { generateApi, songsApi } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { Song } from '../../../types';
 import { DownloadModal, DownloadFormat, DownloadVersion } from '../../DownloadModal';
@@ -165,6 +165,33 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
           }
         }
         console.log(`[RecordingsTab] Total groups: ${results.length}, total songs: ${results.reduce((n, g) => n + g.songs.length, 0)}`);
+
+        // Batch-fetch actual DB song records to get proper coverUrl, originalAudioUrl, etc.
+        const allUrls = results.flatMap(g => g.songs.map(s => s.audioUrl).filter(Boolean));
+        if (allUrls.length > 0 && token) {
+          try {
+            const { songs: dbSongs } = await songsApi.getSongsByUrls(allUrls, token);
+            const dbMap = new Map(dbSongs.map(s => [s.audioUrl, s]));
+            console.log(`[RecordingsTab] DB lookup returned ${dbSongs.length} songs for ${allUrls.length} URLs`);
+            for (const group of results) {
+              group.songs = group.songs.map(s => {
+                const db = dbMap.get(s.audioUrl);
+                if (db) {
+                  return {
+                    ...s,
+                    id: db.id,
+                    coverUrl: db.coverUrl || s.coverUrl,
+                    generationParams: db.generationParams || s.generationParams,
+                  };
+                }
+                return s;
+              });
+            }
+          } catch (dbErr) {
+            console.warn('[RecordingsTab] DB song lookup failed (non-fatal):', dbErr);
+          }
+        }
+
         if (!cancelled) {
           setGroups(results);
           const totalSongs = results.reduce((n, g) => n + g.songs.length, 0);
