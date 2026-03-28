@@ -34,13 +34,15 @@ function formatSize(bytes?: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const STORAGE_KEY = 'hotstep_file_browser_last_dir';
+const STORAGE_KEY_PREFIX = 'hotstep_file_browser_last_dir';
 
-function getLastDir(): string {
-    try { return localStorage.getItem(STORAGE_KEY) || ''; } catch { return ''; }
+function getLastDir(filter?: string): string {
+    const key = filter ? `${STORAGE_KEY_PREFIX}_${filter}` : STORAGE_KEY_PREFIX;
+    try { return localStorage.getItem(key) || ''; } catch { return ''; }
 }
-function saveLastDir(dir: string) {
-    try { localStorage.setItem(STORAGE_KEY, dir); } catch { /* ignore */ }
+function saveLastDir(dir: string, filter?: string) {
+    const key = filter ? `${STORAGE_KEY_PREFIX}_${filter}` : STORAGE_KEY_PREFIX;
+    try { localStorage.setItem(key, dir); } catch { /* ignore */ }
 }
 
 export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
@@ -62,18 +64,18 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
             setCurrentDir(result.current);
             setPathInput(result.current);
             setEntries(result.entries);
-            saveLastDir(result.current);
+            saveLastDir(result.current, filter);
         } catch (err: any) {
             setError(err?.message || 'Failed to list directory');
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [token, filter]);
 
     // Load initial directory when modal opens
     useEffect(() => {
         if (open) {
-            loadDir(startPath || getLastDir() || '');
+            loadDir(startPath || getLastDir(filter) || '');
         }
     }, [open, startPath, loadDir]);
 
