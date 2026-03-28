@@ -25,7 +25,7 @@ import { AudioEnhancerModal, openAudioEnhancer } from './components/AudioEnhance
 import { RefineModal } from './components/RefineModal';
 import { MasteringConsoleModal, MasteringParams as MasteringParamsType } from './components/MasteringConsoleModal';
 import { SearchPage } from './components/SearchPage';
-import { LyricStudio } from './components/lyric-studio/LyricStudio';
+// V1 LyricStudio retired — V2 is the sole implementation
 import { LyricStudioV2 } from './components/lyric-studio/v2/LyricStudioV2';
 import { LlmSettingsModal } from './components/LlmSettingsModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -1971,9 +1971,7 @@ function AppContent() {
         );
 
       case 'lyric-studio':
-        return localStorage.getItem('lyric-studio-v2') === 'true'
-          ? <LyricStudioV2 onPlaySong={playSong} />
-          : <LyricStudio onPlaySong={playSong} />;
+        return <LyricStudioV2 onPlaySong={playSong} />;
 
 
       case 'create':

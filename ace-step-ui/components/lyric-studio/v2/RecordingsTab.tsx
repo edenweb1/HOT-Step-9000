@@ -46,12 +46,19 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
     [generations, filterGenerationId]
   );
 
+  // HARD LOCK: track which genKey we already fetched — prevents any possible re-fetch loop
+  const lastFetchedKey = useRef<string>('');
+
   // Load audio generations — keyed only on genKey + token (stable strings)
   useEffect(() => {
     if (!token || genKey === '|all') {
       setLoading(false);
       return;
     }
+    // Absolute guard: if we already fetched this exact key, skip
+    if (lastFetchedKey.current === genKey) return;
+    lastFetchedKey.current = genKey;
+
     let cancelled = false;
 
     const load = async () => {
