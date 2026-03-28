@@ -12,6 +12,7 @@ import { ProfilesTab } from './ProfilesTab';
 import { WrittenSongsTab } from './WrittenSongsTab';
 import { RecordingsTab } from './RecordingsTab';
 import { useAudioGeneration } from './useAudioGeneration';
+import { AudioJobProgress, ActiveJob } from './AudioJobProgress';
 import { Song } from '../../../types';
 
 function parseSongs(songs: SongLyric[] | string): SongLyric[] {
@@ -57,6 +58,9 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
   const [fetchModalPrefill, setFetchModalPrefill] = useState<string | undefined>();
   const [presetModalOpen, setPresetModalOpen] = useState(false);
+
+  // ── Audio generation jobs ──
+  const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
 
   // ── Toast ──
   const [toast, setToast] = useState<string | null>(null);
@@ -275,7 +279,12 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     profiles,
     showToast,
     onJobLinked: (genId, jobId) => {
-      console.log(`[LyricStudioV2] Audio job ${jobId} linked to generation ${genId}`);
+      const gen = generations.find(g => g.id === genId);
+      setActiveJobs(prev => [...prev, {
+        jobId,
+        title: gen?.title || 'Untitled',
+        generationId: genId,
+      }]);
     },
   });
 
@@ -456,6 +465,17 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
           showToast={showToast}
         />
       )}
+
+      {/* Audio generation progress bar */}
+      <AudioJobProgress
+        activeJobs={activeJobs}
+        onJobComplete={(jobId) => {
+          refreshAlbumData();
+        }}
+        onJobRemove={(jobId) => {
+          setActiveJobs(prev => prev.filter(j => j.jobId !== jobId));
+        }}
+      />
     </div>
   );
 };

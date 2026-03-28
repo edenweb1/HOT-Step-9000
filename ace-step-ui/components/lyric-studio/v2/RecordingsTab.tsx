@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Play, Trash2, Headphones, ChevronDown, ChevronRight, Loader2, Clock, X, Filter } from 'lucide-react';
 import { lireekApi, Generation, AudioGeneration } from '../../../services/lyricStudioApi';
 import { generateApi } from '../../../services/api';
@@ -27,10 +27,13 @@ export const RecordingsTab: React.FC<RecordingsTabProps> = ({
   const [loading, setLoading] = useState(true);
   const [expandedGenId, setExpandedGenId] = useState<number | null>(null);
 
-  // Apply filter if set
-  const filteredGenerations = filterGenerationId
-    ? generations.filter(g => g.id === filterGenerationId)
-    : generations;
+  // Apply filter if set — memoize to prevent infinite re-render
+  const filteredGenerations = useMemo(() => 
+    filterGenerationId
+      ? generations.filter(g => g.id === filterGenerationId)
+      : generations,
+    [generations, filterGenerationId]
+  );
 
   // Load audio generations for ALL lyric generations
   const loadAudioGens = useCallback(async () => {
