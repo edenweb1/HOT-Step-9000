@@ -540,16 +540,44 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
             <div className="flex-1 overflow-hidden relative">
               {/* Cover art backdrop */}
               {isPlaying && currentSong?.coverUrl && (
-                <div
-                  className="absolute inset-0 z-0 pointer-events-none transition-[background-image] duration-700"
-                  style={{
-                    backgroundImage: `url(${currentSong.coverUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    filter: 'brightness(0.15) blur(2px) saturate(1.4)',
-                    transform: 'scale(1.15)',
-                  }}
-                />
+                <>
+                  <style>
+                    {`
+                      @keyframes ls-random-zoom {
+                        0%, 100% { scale: 1.4; }
+                        50%      { scale: 1.6; }
+                      }
+                      @keyframes ls-random-rotate {
+                        0%, 100% { rotate: -5deg; }
+                        25%      { rotate: 15deg; }
+                        50%      { rotate: 2deg; }
+                        75%      { rotate: -15deg; }
+                      }
+                      @keyframes ls-random-pan {
+                        0%, 100% { translate: 0% 0%; }
+                        20%      { translate: -5% 4%; }
+                        40%      { translate: 6% -5%; }
+                        60%      { translate: -4% -6%; }
+                        80%      { translate: 5% 5%; }
+                      }
+                      .ls-dynamic-backdrop {
+                        animation: 
+                          ls-random-zoom 47s ease-in-out infinite,
+                          ls-random-rotate 61s ease-in-out infinite,
+                          ls-random-pan 53s ease-in-out infinite;
+                      }
+                    `}
+                  </style>
+                  <div
+                    className="absolute inset-0 z-0 pointer-events-none transition-[background-image] duration-700 ls-dynamic-backdrop"
+                    style={{
+                      backgroundImage: `url(${currentSong.coverUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      filter: 'brightness(0.15) blur(2px) saturate(1.4)',
+                    }}
+                  />
+                </>
               )}
               <div className="relative z-[1] h-full">
               <ContentTabs
