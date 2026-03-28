@@ -13,6 +13,8 @@ import { WrittenSongsTab } from './WrittenSongsTab';
 import { RecordingsTab } from './RecordingsTab';
 import { useAudioGeneration } from './useAudioGeneration';
 import { AudioJobProgress, ActiveJob } from './AudioJobProgress';
+import { LiveVisualizer } from '../../LiveVisualizer';
+import { LyricsBar } from '../../LyricsBar';
 import { Song } from '../../../types';
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
@@ -56,7 +58,14 @@ interface NavState {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ onPlaySong }) => {
+interface LyricStudioV2Props {
+  onPlaySong?: (song: Song) => void;
+  isPlaying?: boolean;
+  currentSong?: Song | null;
+  currentTime?: number;
+}
+
+export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlaying = false, currentSong = null, currentTime = 0 }) => {
   // ── Navigation ──
   const [nav, setNav] = useState<NavState>({
     level: 'artists',
@@ -505,9 +514,17 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
         )}
 
         {nav.level === 'album-detail' && nav.selectedArtist && nav.selectedAlbum && (
-          <div className="h-full flex ls2-fade-in">
-            {/* Left: album header */}
-            <div className="w-64 flex-shrink-0 border-r border-white/5 overflow-hidden">
+          <div className="h-full flex flex-col ls2-fade-in">
+            <div className="flex-1 flex min-h-0">
+            {/* Left: album header — relative for visualizer bg */}
+            <div className="w-64 flex-shrink-0 border-r border-white/5 overflow-hidden relative">
+              {/* Visualizer background */}
+              {isPlaying && (
+                <div className="absolute inset-0 z-0 pointer-events-none">
+                  <LiveVisualizer isPlaying={true} className="w-full h-full" dimmed={true} showControls={false} instanceId="ls-sidebar" />
+                </div>
+              )}
+              <div className="relative z-[1] h-full">
               <AlbumHeader
                 artist={nav.selectedArtist}
                 album={nav.selectedAlbum}
@@ -517,9 +534,24 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                 generationCount={generations.length}
                 songCount={songCount}
               />
+              </div>
             </div>
-            {/* Middle: tabbed content */}
-            <div className="flex-1 overflow-hidden">
+            {/* Middle: tabbed content — relative for cover art backdrop */}
+            <div className="flex-1 overflow-hidden relative">
+              {/* Cover art backdrop */}
+              {isPlaying && currentSong?.coverUrl && (
+                <div
+                  className="absolute inset-0 z-0 pointer-events-none transition-[background-image] duration-700"
+                  style={{
+                    backgroundImage: `url(${currentSong.coverUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'brightness(0.15) blur(2px) saturate(1.4)',
+                    transform: 'scale(1.15)',
+                  }}
+                />
+              )}
+              <div className="relative z-[1] h-full">
               <ContentTabs
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
@@ -556,10 +588,17 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                   />
                 )}
               </ContentTabs>
+              </div>
             </div>
-            {/* Right: Generated Songs — always visible */}
-            <div className="w-[30%] min-w-[280px] flex-shrink-0 border-l border-white/5 overflow-hidden flex flex-col">
-              <div className="flex-shrink-0 px-4 py-3 border-b border-white/5 bg-zinc-950/30">
+            {/* Right: Generated Songs — relative for visualizer bg */}
+            <div className="w-[30%] min-w-[280px] flex-shrink-0 border-l border-white/5 overflow-hidden flex flex-col relative">
+              {/* Visualizer background */}
+              {isPlaying && (
+                <div className="absolute inset-0 z-0 pointer-events-none">
+                  <LiveVisualizer isPlaying={true} className="w-full h-full" dimmed={true} showControls={false} instanceId="ls-recordings" />
+                </div>
+              )}
+              <div className="relative z-[1] flex-shrink-0 px-4 py-3 border-b border-white/5 bg-zinc-950/30">
                 <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
                   <span>🎧</span> Generated Songs
                   {songCount > 0 && (
@@ -569,7 +608,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                   )}
                 </h3>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="relative z-[1] flex-1 overflow-y-auto">
                 <RecordingsTab
                   generations={generations}
                   onPlaySong={handlePlaySong}
@@ -582,6 +621,15 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                 />
               </div>
             </div>
+            </div>
+            {/* Lyrics Bar — streaming lyric line above the player */}
+            {isPlaying && currentSong && (
+              <LyricsBar
+                audioUrl={currentSong.audioUrl}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+              />
+            )}
           </div>
         )}
       </div>

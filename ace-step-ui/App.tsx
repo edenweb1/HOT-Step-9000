@@ -1971,7 +1971,7 @@ function AppContent() {
         );
 
       case 'lyric-studio':
-        return <LyricStudioV2 onPlaySong={playSong} />;
+        return <LyricStudioV2 onPlaySong={playSong} isPlaying={isPlaying} currentSong={currentSong} currentTime={currentTime} />;
 
 
       case 'create':

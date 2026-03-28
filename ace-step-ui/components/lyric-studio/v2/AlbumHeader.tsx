@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, Settings2, Disc3, Music, FileText, Users, Music2, Headphones } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight, Settings2, FileText, Users, Music2, Headphones } from 'lucide-react';
 import { Artist, LyricsSet, SongLyric } from '../../../services/lyricStudioApi';
 import { TripleProviderSelector, ModelSelections, loadSelections, saveSelections } from '../ProviderSelector';
 
@@ -25,6 +25,7 @@ export const AlbumHeader: React.FC<AlbumHeaderProps> = ({
 }) => {
   const [imageError, setImageError] = React.useState(false);
   const [modelSelections, setModelSelections] = React.useState<ModelSelections>(loadSelections);
+  const [llmExpanded, setLlmExpanded] = React.useState(false);
   const songs = parseSongs(album.songs);
 
   const gradient = (name: string) => {
@@ -95,20 +96,11 @@ export const AlbumHeader: React.FC<AlbumHeaderProps> = ({
         </div>
       </div>
 
-      {/* LLM Model Selector */}
-      <div className="px-4 pb-3">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2">LLM Models</p>
-        <TripleProviderSelector
-          selections={modelSelections}
-          onSelectionsChange={(sel) => {
-            setModelSelections(sel);
-            saveSelections(sel);
-          }}
-        />
-      </div>
+      {/* Spacer pushes Preset + LLM to bottom */}
+      <div className="flex-1" />
 
       {/* Preset button */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-2">
         <button
           onClick={onOpenPreset}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-zinc-300 hover:text-white font-medium transition-all"
@@ -116,6 +108,31 @@ export const AlbumHeader: React.FC<AlbumHeaderProps> = ({
           <Settings2 className="w-4 h-4" />
           Album Preset
         </button>
+      </div>
+
+      {/* LLM Model Selector — collapsed accordion */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={() => setLlmExpanded(!llmExpanded)}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold transition-colors"
+        >
+          <span>LLM Models</span>
+          {llmExpanded
+            ? <ChevronDown className="w-3.5 h-3.5" />
+            : <ChevronRight className="w-3.5 h-3.5" />
+          }
+        </button>
+        {llmExpanded && (
+          <div className="mt-2 animate-in slide-in-from-top-1 duration-150">
+            <TripleProviderSelector
+              selections={modelSelections}
+              onSelectionsChange={(sel) => {
+                setModelSelections(sel);
+                saveSelections(sel);
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
