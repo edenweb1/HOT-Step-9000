@@ -976,20 +976,55 @@ router.get('/status/:jobId', authMiddleware, async (req: AuthenticatedRequest, r
             }
 
             aceStatus.result.audioUrls = localPaths;
+
+            // Persist the corrected result (with local paths) so future polls
+            // return storedPaths instead of raw Python URLs.
+            await pool.query(
+              'UPDATE generation_jobs SET result = ? WHERE id = ?',
+              [JSON.stringify(aceStatus.result), req.params.jobId]
+            );
           }
         }
 
         // When the job was ALREADY succeeded (status didn't change), the song-creation
         // block above was skipped. In that case aceStatus.result still has RAW Python
-        // URLs which won't match the DB.  Use the stored result from the DB which
-        // already has local paths from the first-time processing.
-        if (aceStatus.status === 'succeeded' && job.status === 'succeeded' && job.result) {
-          try {
-            const storedResult = typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
-            if (storedResult?.audioUrls?.length) {
-              aceStatus.result = storedResult;
-            }
-          } catch { /* use live result if stored result is unparseable */ }
+        // URLs.  Look up the actual local paths from the songs table instead.
+        if (aceStatus.status === 'succeeded' && job.status === 'succeeded') {
+          const rawUrls = aceStatus.result?.audioUrls || [];
+          const hasRawUrls = rawUrls.some((u: string) => u.startsWith('http'));
+          if (hasRawUrls) {
+            // The stored result has raw Python URLs — look up songs by job source
+            try {
+              const storedResult = typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
+              // Check if stored result already has local paths
+              const storedHasLocal = storedResult?.audioUrls?.length > 0 &&
+                !storedResult.audioUrls.some((u: string) => u.startsWith('http'));
+              if (storedHasLocal) {
+                aceStatus.result = storedResult;
+              } else {
+                // Last resort: query songs table for audio_urls created from this job
+                // Match by title (with variation suffix), user, and source
+                const params = typeof job.params === 'string' ? JSON.parse(job.params) : job.params;
+                const baseTitle = (params.title || 'Untitled').replace(/[%_]/g, '');
+                const songRows = await pool.query(
+                  `SELECT audio_url FROM songs
+                   WHERE user_id = ? AND source = ?
+                     AND (title = ? OR title LIKE ?)
+                   ORDER BY created_at DESC LIMIT 10`,
+                  [req.user!.id, params.source || 'create', baseTitle, `${baseTitle} (v%)`]
+                );
+                console.log(`[StatusFix] Looked up songs for title="${baseTitle}", source="${params.source}", found=${songRows.rows.length}`);
+                if (songRows.rows.length > 0) {
+                  aceStatus.result.audioUrls = songRows.rows.map((r: any) => r.audio_url);
+                  // Also update stored result for future polls
+                  await pool.query(
+                    'UPDATE generation_jobs SET result = ? WHERE id = ?',
+                    [JSON.stringify(aceStatus.result), req.params.jobId]
+                  );
+                }
+              }
+            } catch { /* keep raw URLs as fallback */ }
+          }
         }
 
         res.json({
