@@ -5,6 +5,7 @@ import { ArtistSidebar } from './ArtistSidebar';
 import { AlbumGrid } from './AlbumGrid';
 import { AlbumHeader } from './AlbumHeader';
 import { FetchLyricsModal } from './FetchLyricsModal';
+import { PresetSettingsModal } from './PresetSettingsModal';
 import { ContentTabs, TabId } from './ContentTabs';
 import { SourceLyricsTab } from './SourceLyricsTab';
 import { ProfilesTab } from './ProfilesTab';
@@ -53,6 +54,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
   // ── Modals ──
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
   const [fetchModalPrefill, setFetchModalPrefill] = useState<string | undefined>();
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
 
   // ── Toast ──
   const [toast, setToast] = useState<string | null>(null);
@@ -295,7 +297,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
                 artist={nav.selectedArtist}
                 album={nav.selectedAlbum}
                 onBack={handleBackToAlbums}
-                onOpenPreset={() => showToast('Preset settings coming next')}
+                onOpenPreset={() => setPresetModalOpen(true)}
               />
             </div>
             {/* Right: tabbed content */}
@@ -351,6 +353,17 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
         onFetch={handleFetchLyrics}
         prefillArtist={fetchModalPrefill}
       />
+
+      {/* Preset modal */}
+      {nav.selectedAlbum && (
+        <PresetSettingsModal
+          isOpen={presetModalOpen}
+          lyricsSetId={nav.selectedAlbum.id}
+          albumName={nav.selectedAlbum.album || 'Top Songs'}
+          onClose={() => setPresetModalOpen(false)}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 };
