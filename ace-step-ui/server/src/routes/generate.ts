@@ -979,6 +979,19 @@ router.get('/status/:jobId', authMiddleware, async (req: AuthenticatedRequest, r
           }
         }
 
+        // When the job was ALREADY succeeded (status didn't change), the song-creation
+        // block above was skipped. In that case aceStatus.result still has RAW Python
+        // URLs which won't match the DB.  Use the stored result from the DB which
+        // already has local paths from the first-time processing.
+        if (aceStatus.status === 'succeeded' && job.status === 'succeeded' && job.result) {
+          try {
+            const storedResult = typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
+            if (storedResult?.audioUrls?.length) {
+              aceStatus.result = storedResult;
+            }
+          } catch { /* use live result if stored result is unparseable */ }
+        }
+
         res.json({
           jobId: req.params.jobId,
           status: aceStatus.status,
