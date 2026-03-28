@@ -102,6 +102,48 @@ def register_lireek_routes(app: FastAPI) -> None:
             if conn:
                 conn.close()
 
+    @app.post("/api/lireek/artists/{artist_id}/set-image")
+    async def set_artist_image(artist_id: int, body: dict):
+        """Set a custom image URL for an artist (user override for wrong images)."""
+        from acestep.api.lireek.lireek_db import set_artist_custom_image
+        image_url = body.get("image_url", "").strip()
+        if not image_url:
+            raise HTTPException(status_code=400, detail="image_url is required")
+        if not set_artist_custom_image(artist_id, image_url):
+            raise HTTPException(status_code=404, detail="Artist not found")
+        return {"image_url": image_url}
+
+    @app.post("/api/lireek/lyrics-sets/{ls_id}/refresh-image")
+    async def refresh_album_image(ls_id: int):
+        """Fetch album cover art from Genius and store it."""
+        from acestep.api.lireek.lireek_db import (
+            _connect, _row_to_dict, update_lyrics_set_image,
+        )
+        from acestep.api.lireek.genius_service import get_album_cover_art
+        conn = None
+        try:
+            conn = _connect()
+            row = conn.execute(
+                "SELECT ls.*, a.name as artist_name "
+                "FROM lyrics_sets ls JOIN artists a ON a.id = ls.artist_id "
+                "WHERE ls.id = ?", (ls_id,)
+            ).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Lyrics set not found")
+            ls = _row_to_dict(row)
+            album_name = ls.get("album")
+            artist_name = ls.get("artist_name", "")
+            if not album_name:
+                raise HTTPException(status_code=400, detail="No album name — cannot search for cover art")
+            image_url = get_album_cover_art(artist_name, album_name)
+            if image_url:
+                update_lyrics_set_image(ls_id, image_url)
+                return {"image_url": image_url}
+            raise HTTPException(status_code=404, detail="Could not find album cover on Genius")
+        finally:
+            if conn:
+                conn.close()
+
     # ── Lyrics Sets ───────────────────────────────────────────────────────
 
     @app.get("/api/lireek/lyrics-sets")

@@ -476,3 +476,23 @@ def get_artist_image_url(artist_name: str) -> Optional[str]:
     except Exception as e:
         logger.warning("Failed to fetch artist image for '%s': %s", artist_name, e)
         return None
+
+
+def get_album_cover_art(artist_name: str, album_name: str) -> Optional[str]:
+    """Look up an album on Genius and return the cover art URL."""
+    try:
+        album_id = _find_album_id(album_name, artist_name)
+        if album_id is None:
+            return None
+        headers = _get_auth_headers()
+        resp = httpx.get(
+            f"{API_ROOT}/albums/{album_id}",
+            headers=headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        album_data = resp.json()["response"]["album"]
+        return album_data.get("cover_art_url") or album_data.get("cover_art_thumbnail_url")
+    except Exception as e:
+        logger.warning("Failed to fetch album cover for '%s - %s': %s", artist_name, album_name, e)
+        return None

@@ -138,6 +138,12 @@ _MIGRATIONS = [
             "ALTER TABLE artists ADD COLUMN genius_id INTEGER",
         ],
     ),
+    (
+        "SELECT image_url FROM lyrics_sets LIMIT 0",
+        [
+            "ALTER TABLE lyrics_sets ADD COLUMN image_url TEXT",
+        ],
+    ),
 ]
 
 
@@ -231,6 +237,20 @@ def delete_artist(artist_id: int) -> bool:
         conn.close()
 
 
+def set_artist_custom_image(artist_id: int, image_url: str) -> bool:
+    """Set a custom image URL for an artist (user override)."""
+    conn = _connect()
+    try:
+        cursor = conn.execute(
+            "UPDATE artists SET image_url = ? WHERE id = ?",
+            (image_url, artist_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 # ── Lyrics Sets ───────────────────────────────────────────────────────────────
 
 def save_lyrics_set(
@@ -257,6 +277,20 @@ def save_lyrics_set(
             "total_songs": len(songs),
             "fetched_at": now,
         }
+    finally:
+        conn.close()
+
+
+def update_lyrics_set_image(lyrics_set_id: int, image_url: str) -> bool:
+    """Set an image URL on a lyrics_set (album cover)."""
+    conn = _connect()
+    try:
+        cursor = conn.execute(
+            "UPDATE lyrics_sets SET image_url = ? WHERE id = ?",
+            (image_url, lyrics_set_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
     finally:
         conn.close()
 

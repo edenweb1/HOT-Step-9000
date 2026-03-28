@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Disc3, Plus, FileText, Users } from 'lucide-react';
 import { LyricsSet, SongLyric } from '../../../services/lyricStudioApi';
 
@@ -21,6 +21,7 @@ interface AlbumGridProps {
 export const AlbumGrid: React.FC<AlbumGridProps> = ({
   albums, loading, artistName, onSelectAlbum, onAddAlbum, onDeleteAlbum,
 }) => {
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
   const gradient = (name: string) => {
     const hash = (name || 'album').split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
     const h1 = Math.abs(hash) % 360;
@@ -81,16 +82,26 @@ export const AlbumGrid: React.FC<AlbumGridProps> = ({
                 className={`group relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-2xl hover:shadow-indigo-500/10 ls2-card-in ls2-stagger-${Math.min(idx + 1, 11)}`}
                 onClick={() => onSelectAlbum(album)}
               >
-                {/* Album gradient background */}
-                <div
-                  className="absolute inset-0"
-                  style={{ background: gradient(album.album || String(album.id)) }}
-                />
-
-                {/* Decorative vinyl record */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] rounded-full border border-white/5 opacity-20">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] h-[30%] rounded-full border border-white/10" />
-                </div>
+                {/* Album cover art or gradient */}
+                {album.image_url && !imageErrors.has(album.id) ? (
+                  <img
+                    src={album.image_url}
+                    alt={album.album || 'Album'}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    onError={() => setImageErrors(prev => new Set(prev).add(album.id))}
+                  />
+                ) : (
+                  <>
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: gradient(album.album || String(album.id)) }}
+                    />
+                    {/* Decorative vinyl record */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] rounded-full border border-white/5 opacity-20">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] h-[30%] rounded-full border border-white/10" />
+                    </div>
+                  </>
+                )}
 
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />

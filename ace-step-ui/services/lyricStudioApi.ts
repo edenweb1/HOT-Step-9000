@@ -42,6 +42,7 @@ export interface LyricsSet {
   artist_id: number;
   artist_name: string;
   album: string | null;
+  image_url?: string;
   songs: SongLyric[] | string;
   max_songs: number;
   created_at: string;
@@ -111,6 +112,9 @@ export const lireekApi = {
   refreshArtistImage: (id: number): Promise<{ image_url: string }> =>
     api(`/api/lireek/artists/${id}/refresh-image`, { method: 'POST' }),
 
+  setArtistImage: (id: number, imageUrl: string): Promise<{ image_url: string }> =>
+    api(`/api/lireek/artists/${id}/set-image`, { method: 'POST', body: { image_url: imageUrl } }),
+
   // ── Lyrics Sets ─────────────────────────────────────────────────────────
   listLyricsSets: (artistId?: number): Promise<{ lyrics_sets: LyricsSet[] }> =>
     api(`/api/lireek/lyrics-sets${artistId != null ? `?artist_id=${artistId}` : ''}`),
@@ -123,6 +127,9 @@ export const lireekApi = {
 
   removeSong: (lyricsSetId: number, songIndex: number): Promise<any> =>
     api(`/api/lireek/lyrics-sets/${lyricsSetId}/songs/${songIndex}`, { method: 'DELETE' }),
+
+  refreshAlbumImage: (id: number): Promise<{ image_url: string }> =>
+    api(`/api/lireek/lyrics-sets/${id}/refresh-image`, { method: 'POST' }),
 
   // ── Genius Fetch ────────────────────────────────────────────────────────
   fetchLyrics: (params: {

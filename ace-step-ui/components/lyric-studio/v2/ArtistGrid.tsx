@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Music, Plus, RefreshCw, Trash2, ImageOff, MoreVertical } from 'lucide-react';
+import { Music, Plus, RefreshCw, Trash2, ImageOff, MoreVertical, Link2 } from 'lucide-react';
 import { Artist } from '../../../services/lyricStudioApi';
 
 interface ArtistGridProps {
@@ -9,10 +9,11 @@ interface ArtistGridProps {
   onAddNew: () => void;
   onDelete: (artist: Artist) => void;
   onRefreshImage: (artist: Artist) => void;
+  onSetImage?: (artist: Artist, url: string) => void;
 }
 
 export const ArtistGrid: React.FC<ArtistGridProps> = ({
-  artists, loading, onSelectArtist, onAddNew, onDelete, onRefreshImage,
+  artists, loading, onSelectArtist, onAddNew, onDelete, onRefreshImage, onSetImage,
 }) => {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
@@ -145,8 +146,21 @@ export const ArtistGrid: React.FC<ArtistGridProps> = ({
                     onClick={() => { onRefreshImage(artist); setMenuOpenId(null); }}
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh Image
+                    Re-fetch from Genius
                   </button>
+                  {onSetImage && (
+                    <button
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                      onClick={() => {
+                        setMenuOpenId(null);
+                        const url = prompt(`Paste an image URL for ${artist.name}:`, artist.image_url || '');
+                        if (url && url.trim()) onSetImage(artist, url.trim());
+                      }}
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      Set Custom Image
+                    </button>
+                  )}
                   <div className="border-t border-white/5 my-1" />
                   <button
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"

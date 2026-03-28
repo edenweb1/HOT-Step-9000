@@ -108,9 +108,31 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
     try {
       const res = await lireekApi.listLyricsSets(artistId);
       setAlbums(res.lyrics_sets);
+      setAlbumsLoading(false);
+
+      // Auto-fetch missing album cover art in the background
+      const missing = res.lyrics_sets.filter(a => !a.image_url && a.album);
+      if (missing.length > 0) {
+        console.log(`[LyricStudioV2] Fetching cover art for ${missing.length} albums...`);
+        const batchSize = 2;
+        for (let i = 0; i < missing.length; i += batchSize) {
+          const batch = missing.slice(i, i + batchSize);
+          const results = await Promise.allSettled(
+            batch.map(a => lireekApi.refreshAlbumImage(a.id))
+          );
+          setAlbums(prev => prev.map(album => {
+            const idx = batch.findIndex(b => b.id === album.id);
+            if (idx === -1) return album;
+            const result = results[idx];
+            if (result.status === 'fulfilled' && result.value.image_url) {
+              return { ...album, image_url: result.value.image_url };
+            }
+            return album;
+          }));
+        }
+      }
     } catch (err) {
       console.error('[LyricStudioV2] Failed to load albums:', err);
-    } finally {
       setAlbumsLoading(false);
     }
   }, []);
@@ -181,6 +203,16 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
       showToast(`Updated image for ${artist.name}`);
     } catch (err: any) {
       showToast(`Couldn't find image: ${err.message}`);
+    }
+  }, [showToast]);
+
+  const handleSetImage = useCallback(async (artist: Artist, url: string) => {
+    try {
+      const res = await lireekApi.setArtistImage(artist.id, url);
+      setArtists(prev => prev.map(a => a.id === artist.id ? { ...a, image_url: res.image_url } : a));
+      showToast(`Image updated for ${artist.name}`);
+    } catch (err: any) {
+      showToast(`Failed: ${err.message}`);
     }
   }, [showToast]);
 
@@ -299,6 +331,7 @@ export const LyricStudioV2: React.FC<{ onPlaySong?: (song: Song) => void }> = ({
               onAddNew={openFetchNew}
               onDelete={handleDeleteArtist}
               onRefreshImage={handleRefreshImage}
+              onSetImage={handleSetImage}
             />
           </div>
         )}
