@@ -517,7 +517,14 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
               } catch { /* non-critical */ }
             }
           } else {
-            showToast('Loading adapter...');
+            // Unload any previously loaded adapters before loading the new one
+            // (prevents stacking and stale trigger words from a different artist)
+            if (loraStatus?.advanced?.slots && loraStatus.advanced.slots.length > 0) {
+              showToast('Switching adapter...');
+              await generateApi.unloadLora(token);
+            } else {
+              showToast('Loading adapter...');
+            }
             await generateApi.loadLora({
               lora_path: preset.adapter_path,
               scale: preset.adapter_scale ?? 1.0,
