@@ -534,39 +534,23 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
             params.loraPath = preset.adapter_path;
             params.loraScale = preset.adapter_scale ?? 1.0;
           }
-          // Apply trigger word (derive from filename, same as CreatePanel global trigger logic)
+          // Prepend trigger word to caption (derive from adapter filename)
           const useFilename = localStorage.getItem('ace-globalTriggerUseFilename') === 'true';
           const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
           if (useFilename) {
             const fileName = preset.adapter_path.replace(/\\/g, '/').split('/').pop() || '';
             const triggerWord = fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ');
-            if (triggerWord) {
-              // Always fetch fresh status after load to get actual slot info
-              const freshStatus = await generateApi.getLoraStatus(token);
-              const normPath = (p: string) => p.replace(/\\/g, '/').toLowerCase();
-              const targetPath = normPath(preset.adapter_path);
-              const slot = freshStatus?.advanced?.slots?.find(
-                (s: any) => normPath(s.path) === targetPath
-              );
-              console.log('[LyricStudio] Trigger word debug:', {
-                useFilename, triggerWord, placement,
-                targetPath,
-                slots: freshStatus?.advanced?.slots?.map((s: any) => ({ slot: s.slot, path: s.path })),
-                matchedSlot: slot?.slot,
-              });
-              if (slot) {
-                try {
-                  await generateApi.setSlotTriggerWord({
-                    slot: slot.slot,
-                    trigger_word: triggerWord,
-                    tag_position: placement,
-                  }, token);
-                  console.log(`[LyricStudio] Trigger word '${triggerWord}' (${placement}) applied to slot ${slot.slot}`);
-                } catch (twErr) {
-                  console.error('[LyricStudio] Failed to set trigger word:', twErr);
+            if (triggerWord && params.style) {
+              const current = (params.style as string).trim();
+              if (!current.toLowerCase().includes(triggerWord.toLowerCase())) {
+                if (placement === 'replace') {
+                  params.style = triggerWord;
+                } else if (placement === 'append') {
+                  params.style = current ? `${current}, ${triggerWord}` : triggerWord;
+                } else {
+                  params.style = current ? `${triggerWord}, ${current}` : triggerWord;
                 }
-              } else {
-                console.warn('[LyricStudio] No matching slot found for trigger word, adapter may not be loaded');
+                console.log(`[LyricStudio] Trigger word '${triggerWord}' ${placement}ed → '${params.style}'`);
               }
             }
           }
