@@ -154,7 +154,7 @@ export const lireekApi = {
     album?: string;
     max_songs?: number;
   }): Promise<{ artist: Artist; lyrics_set: LyricsSet; songs_fetched: number }> =>
-    api('/api/lireek/fetch-lyrics', { method: 'POST', body: params }),
+    api('/api/lireek/fetch-lyrics', { method: 'POST', body: params, timeoutMs: 120_000 }),
 
   listProfiles: (lyricsSetId?: number, includeFull?: boolean): Promise<{ profiles: Profile[] }> => {
     const params = new URLSearchParams();
