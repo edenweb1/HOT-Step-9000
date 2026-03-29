@@ -494,16 +494,38 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
       {/* Main content */}
       <div className="flex-1 overflow-hidden">
         {nav.level === 'artists' && (
-          <div className="h-full overflow-y-auto ls2-fade-in">
-            <ArtistGrid
-              artists={artists}
-              loading={artistsLoading}
-              onSelectArtist={handleSelectArtist}
-              onAddNew={openFetchNew}
-              onDelete={handleDeleteArtist}
-              onRefreshImage={handleRefreshImage}
-              onSetImage={handleSetImage}
-            />
+          <div className="h-full flex ls2-fade-in">
+            {/* Settings sidebar */}
+            <div className="w-60 flex-shrink-0 border-r border-white/5 overflow-hidden">
+              <ArtistPageSidebar
+                onOpenQueue={async () => {
+                  try {
+                    const [lsRes, pRes] = await Promise.all([
+                      lireekApi.listLyricsSets(),
+                      lireekApi.listProfiles(),
+                    ]);
+                    setAllLyricsSets(lsRes.lyrics_sets);
+                    setAllProfiles(pRes.profiles);
+                  } catch (err) {
+                    console.error('[LyricStudioV2] Failed to load queue data:', err);
+                  }
+                  setQueueOpen(true);
+                }}
+                onOpenPromptEditor={() => setPromptEditorOpen(true)}
+              />
+            </div>
+            {/* Artist grid */}
+            <div className="flex-1 overflow-y-auto">
+              <ArtistGrid
+                artists={artists}
+                loading={artistsLoading}
+                onSelectArtist={handleSelectArtist}
+                onAddNew={openFetchNew}
+                onDelete={handleDeleteArtist}
+                onRefreshImage={handleRefreshImage}
+                onSetImage={handleSetImage}
+              />
+            </div>
           </div>
         )}
 

@@ -23,8 +23,8 @@ function usePersistedState<T>(key: string, defaultValue: T): [T, React.Dispatch<
 // ── Props ────────────────────────────────────────────────────────────────────
 
 interface ArtistPageSidebarProps {
-  artist: Artist;
-  albumCount: number;
+  artist?: Artist;
+  albumCount?: number;
   onOpenQueue: () => void;
   onOpenPromptEditor: () => void;
 }
@@ -64,28 +64,30 @@ export const ArtistPageSidebar: React.FC<ArtistPageSidebarProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-zinc-950/50 overflow-hidden">
-      {/* Artist image / gradient */}
-      <div className="relative flex-shrink-0">
-        {artist.image_url && !imageError ? (
-          <img
-            src={artist.image_url}
-            alt={artist.name}
-            className="w-full aspect-[16/9] object-cover"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full aspect-[16/9]" style={{ background: gradient(artist.name) }} />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
-      </div>
-
-      {/* Artist info */}
-      <div className="px-4 py-3 -mt-6 relative z-10 flex-shrink-0">
-        <h2 className="text-base font-bold text-white leading-tight">{artist.name}</h2>
-        <p className="text-xs text-zinc-400 mt-0.5">
-          {albumCount} album{albumCount !== 1 ? 's' : ''}
-        </p>
-      </div>
+      {/* Artist header — only shown when artist context available */}
+      {artist && (
+        <>
+          <div className="relative flex-shrink-0">
+            {artist.image_url && !imageError ? (
+              <img
+                src={artist.image_url}
+                alt={artist.name}
+                className="w-full aspect-[16/9] object-cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full aspect-[16/9]" style={{ background: gradient(artist.name) }} />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
+          </div>
+          <div className="px-4 py-3 -mt-6 relative z-10 flex-shrink-0">
+            <h2 className="text-base font-bold text-white leading-tight">{artist.name}</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              {(albumCount ?? 0)} album{(albumCount ?? 0) !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </>
+      )}
 
       {/* Action buttons */}
       <div className="px-4 py-2 flex gap-2 flex-shrink-0">
