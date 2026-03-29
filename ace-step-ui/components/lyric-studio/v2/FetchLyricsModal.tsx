@@ -13,7 +13,7 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
 }) => {
   const [artist, setArtist] = useState(prefillArtist || '');
   const [album, setAlbum] = useState('');
-  const [maxSongs, setMaxSongs] = useState(15);
+  const [maxSongs, setMaxSongs] = useState(50);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,9 +116,9 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
             <input
               type="number"
               value={maxSongs}
-              onChange={(e) => setMaxSongs(Math.max(1, Math.min(50, parseInt(e.target.value) || 15)))}
+              onChange={(e) => setMaxSongs(Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
               min={1}
-              max={50}
+              max={100}
               disabled={fetching}
               className="w-24 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-center font-mono focus:outline-none focus:border-pink-500/50 transition-all disabled:opacity-50"
             />
