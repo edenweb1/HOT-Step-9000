@@ -63,6 +63,22 @@ function mergeCreatePanelSettings(params: Record<string, any>): void {
   params.generateCoverArt = localStorage.getItem('generate_cover_art') === 'true';
 }
 
+/** Read global adapter scale override settings (shared with CreatePanel). */
+function getGlobalScaleOverride(): {
+  enabled: boolean;
+  overallScale: number;
+  groupScales: { self_attn: number; cross_attn: number; mlp: number };
+} {
+  try {
+    const enabled = JSON.parse(localStorage.getItem('ace-globalScaleOverride') || 'false');
+    const overallScale = JSON.parse(localStorage.getItem('ace-globalOverallScale') || '1.0');
+    const groupScales = JSON.parse(localStorage.getItem('ace-globalGroupScales') || 'null') || { self_attn: 1.0, cross_attn: 1.0, mlp: 1.0 };
+    return { enabled: !!enabled, overallScale, groupScales };
+  } catch {
+    return { enabled: false, overallScale: 1.0, groupScales: { self_attn: 1.0, cross_attn: 1.0, mlp: 1.0 } };
+  }
+}
+
 function applyTriggerWord(params: Record<string, any>, adapterPath: string): void {
   const useFilename = localStorage.getItem('ace-globalTriggerUseFilename') === 'true';
   const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
@@ -131,6 +147,15 @@ export function useAudioGeneration({ profiles, showToast, onJobLinked }: UseAudi
 
       // 4) Load adapter from album preset
       if (preset?.adapter_path) {
+        // Check for global scale override (shared with CreatePanel)
+        const scaleOverride = getGlobalScaleOverride();
+        const effectiveScale = scaleOverride.enabled ? scaleOverride.overallScale : (preset.adapter_scale ?? 1.0);
+        const effectiveGroupScales = scaleOverride.enabled ? scaleOverride.groupScales : preset.adapter_group_scales;
+
+        if (scaleOverride.enabled) {
+          console.log('[LyricStudioV2] Global scale override active — overallScale:', effectiveScale, 'groupScales:', JSON.stringify(effectiveGroupScales));
+        }
+
         try {
           const loraStatus = await generateApi.getLoraStatus(token);
           const existingSlot = loraStatus?.advanced?.slots?.find(
@@ -141,14 +166,14 @@ export function useAudioGeneration({ profiles, showToast, onJobLinked }: UseAudi
             console.log('[LyricStudioV2] Adapter already loaded, skipping reload');
             params.loraLoaded = true;
             params.loraPath = preset.adapter_path;
-            params.loraScale = preset.adapter_scale ?? 1.0;
+            params.loraScale = effectiveScale;
             // Apply group scales if they differ
-            if (preset.adapter_group_scales) {
-              console.log('[LyricStudioV2] Applying group scales to already-loaded adapter:', JSON.stringify(preset.adapter_group_scales), 'slot:', existingSlot.slot);
+            if (effectiveGroupScales) {
+              console.log('[LyricStudioV2] Applying group scales to already-loaded adapter:', JSON.stringify(effectiveGroupScales), 'slot:', existingSlot.slot);
               try {
                 await generateApi.setSlotGroupScales({
                   slot: existingSlot.slot,
-                  ...preset.adapter_group_scales,
+                  ...effectiveGroupScales,
                 }, token);
                 console.log('[LyricStudioV2] Group scales applied successfully');
               } catch (gsErr) {
@@ -167,14 +192,14 @@ export function useAudioGeneration({ profiles, showToast, onJobLinked }: UseAudi
             }
             const loadPayload: any = {
               lora_path: preset.adapter_path,
-              scale: preset.adapter_scale ?? 1.0,
-              ...(preset.adapter_group_scales ? { group_scales: preset.adapter_group_scales } : {}),
+              scale: effectiveScale,
+              ...(effectiveGroupScales ? { group_scales: effectiveGroupScales } : {}),
             };
             console.log('[LyricStudioV2] Loading adapter with payload:', JSON.stringify(loadPayload));
             await generateApi.loadLora(loadPayload, token);
             params.loraLoaded = true;
             params.loraPath = preset.adapter_path;
-            params.loraScale = preset.adapter_scale ?? 1.0;
+            params.loraScale = effectiveScale;
           }
         } catch (loadErr) {
           console.warn('[LyricStudioV2] Failed to load adapter, continuing without:', loadErr);

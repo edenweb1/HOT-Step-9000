@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { lireekApi, Artist, LyricsSet, Profile, Generation, AlbumPreset, SongLyric } from '../../../services/lyricStudioApi';
 import { ArtistGrid } from './ArtistGrid';
 import { ArtistSidebar } from './ArtistSidebar';
+import { ArtistPageSidebar } from './ArtistPageSidebar';
 import { AlbumGrid } from './AlbumGrid';
 import { AlbumHeader } from './AlbumHeader';
 import { FetchLyricsModal } from './FetchLyricsModal';
@@ -16,6 +17,10 @@ import { AudioJobProgress, ActiveJob } from './AudioJobProgress';
 import { LiveVisualizer } from '../../LiveVisualizer';
 import { LyricsBar } from '../../LyricsBar';
 import { Song } from '../../../types';
+import { QueuePanel } from '../QueuePanel';
+import { PromptEditor } from '../PromptEditor';
+import { useStreamingStore } from '../../../stores/streamingStore';
+import { loadSelections } from '../ProviderSelector';
 
 // ── URL helpers ──────────────────────────────────────────────────────────────
 
@@ -94,6 +99,13 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
   const [fetchModalPrefill, setFetchModalPrefill] = useState<string | undefined>();
   const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [promptEditorOpen, setPromptEditorOpen] = useState(false);
+
+  // ── Bulk queue data (all artists, loaded when queue opens) ──
+  const [allLyricsSets, setAllLyricsSets] = useState<LyricsSet[]>([]);
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const stream = useStreamingStore();
 
   // ── Audio generation jobs ──
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
@@ -497,7 +509,8 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
 
         {nav.level === 'albums' && nav.selectedArtist && (
           <div className="h-full flex ls2-fade-in">
-            <div className="w-56 flex-shrink-0 border-r border-white/5 overflow-hidden">
+            {/* Left: artist quick-switch list */}
+            <div className="w-48 flex-shrink-0 border-r border-white/5 overflow-hidden">
               <ArtistSidebar
                 artists={artists}
                 selectedArtistId={nav.selectedArtist.id}
@@ -505,6 +518,29 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                 onBack={handleBackToArtists}
               />
             </div>
+            {/* Settings sidebar */}
+            <div className="w-60 flex-shrink-0 border-r border-white/5 overflow-hidden">
+              <ArtistPageSidebar
+                artist={nav.selectedArtist}
+                albumCount={albums.length}
+                onOpenQueue={async () => {
+                  // Load full dataset for QueuePanel
+                  try {
+                    const [lsRes, pRes] = await Promise.all([
+                      lireekApi.listLyricsSets(),
+                      lireekApi.listProfiles(),
+                    ]);
+                    setAllLyricsSets(lsRes.lyrics_sets);
+                    setAllProfiles(pRes.profiles);
+                  } catch (err) {
+                    console.error('[LyricStudioV2] Failed to load queue data:', err);
+                  }
+                  setQueueOpen(true);
+                }}
+                onOpenPromptEditor={() => setPromptEditorOpen(true)}
+              />
+            </div>
+            {/* Album grid */}
             <div className="flex-1 overflow-y-auto">
               <AlbumGrid
                 albums={albums}
@@ -685,6 +721,24 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
           showToast={showToast}
         />
       )}
+
+      {/* Queue modal */}
+      <QueuePanel
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        artists={artists}
+        lyricsSets={allLyricsSets}
+        profiles={allProfiles}
+        profilingModel={loadSelections().profiling}
+        generationModel={loadSelections().generation}
+        refinementModel={loadSelections().refinement}
+      />
+
+      {/* Prompt Editor modal */}
+      <PromptEditor
+        open={promptEditorOpen}
+        onClose={() => setPromptEditorOpen(false)}
+      />
 
       {/* Audio generation progress bar */}
       <AudioJobProgress
