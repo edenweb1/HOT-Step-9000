@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Loader2, Music, Disc3 } from 'lucide-react';
+import { X, Search, Music, Disc3 } from 'lucide-react';
 
 interface FetchLyricsModalProps {
   isOpen: boolean;
@@ -14,15 +14,12 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
   const [artist, setArtist] = useState(prefillArtist || '');
   const [album, setAlbum] = useState('');
   const [maxSongs, setMaxSongs] = useState(50);
-  const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Reset form when modal opens with a new prefill
   React.useEffect(() => {
     if (isOpen) {
       setArtist(prefillArtist || '');
       setAlbum('');
-      setError(null);
     }
   }, [isOpen, prefillArtist]);
 
@@ -31,16 +28,9 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artist.trim()) return;
-    setFetching(true);
-    setError(null);
-    try {
-      await onFetch(artist.trim(), album.trim(), maxSongs);
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to fetch lyrics');
-    } finally {
-      setFetching(false);
-    }
+    // Close immediately — fetch runs in background with toast notification
+    onClose();
+    onFetch(artist.trim(), album.trim(), maxSongs);
   };
 
   return (
@@ -79,7 +69,7 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
               placeholder="e.g. Steel Panther"
-              disabled={!!prefillArtist || fetching}
+              disabled={!!prefillArtist}
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 transition-all disabled:opacity-50"
               autoFocus={!prefillArtist}
             />
@@ -100,7 +90,7 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
               value={album}
               onChange={(e) => setAlbum(e.target.value)}
               placeholder="e.g. Feel the Steel (or leave empty for top songs)"
-              disabled={fetching}
+              disabled={false}
               className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-500 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/20 transition-all disabled:opacity-50"
               autoFocus={!!prefillArtist}
             />
@@ -119,33 +109,18 @@ export const FetchLyricsModal: React.FC<FetchLyricsModalProps> = ({
               onChange={(e) => setMaxSongs(Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
               min={1}
               max={100}
-              disabled={fetching}
+              disabled={false}
               className="w-24 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-center font-mono focus:outline-none focus:border-pink-500/50 transition-all disabled:opacity-50"
             />
           </div>
 
-          {error && (
-            <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
-              {error}
-            </div>
-          )}
-
           <button
             type="submit"
-            disabled={!artist.trim() || fetching}
+            disabled={!artist.trim()}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-semibold transition-all"
           >
-            {fetching ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Fetching from Genius...
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                Fetch Lyrics
-              </>
-            )}
+            <Search className="w-4 h-4" />
+            Fetch Lyrics
           </button>
         </form>
       </div>

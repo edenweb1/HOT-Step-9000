@@ -390,14 +390,19 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
   }, [nav.selectedAlbum, showToast]);
 
   const handleFetchLyrics = useCallback(async (artist: string, album: string, maxSongs: number) => {
-    const res = await lireekApi.fetchLyrics({ artist, album: album || undefined, max_songs: maxSongs });
-    showToast(`Fetched ${res.songs_fetched} songs`);
-    await loadArtists();
-    if (nav.selectedArtist && res.artist.id === nav.selectedArtist.id) {
-      await loadAlbums(nav.selectedArtist.id);
-    }
-    if (nav.level === 'artists') {
-      handleSelectArtist(res.artist);
+    showToast(`Fetching lyrics for ${artist}${album ? ` — ${album}` : ''}…`);
+    try {
+      const res = await lireekApi.fetchLyrics({ artist, album: album || undefined, max_songs: maxSongs });
+      showToast(`Fetched ${res.songs_fetched} songs`);
+      await loadArtists();
+      if (nav.selectedArtist && res.artist.id === nav.selectedArtist.id) {
+        await loadAlbums(nav.selectedArtist.id);
+      }
+      if (nav.level === 'artists') {
+        handleSelectArtist(res.artist);
+      }
+    } catch (err: any) {
+      showToast(`Fetch failed: ${err.message}`);
     }
   }, [loadArtists, loadAlbums, nav.selectedArtist, nav.level, handleSelectArtist, showToast]);
 
