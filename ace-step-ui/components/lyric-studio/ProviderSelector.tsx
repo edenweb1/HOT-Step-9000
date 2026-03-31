@@ -55,17 +55,16 @@ const RowSelector: React.FC<{
   const models = currentProvider?.models || [];
 
   return (
-    <div className="flex items-center gap-1.5">
-      <span className={`text-[10px] font-semibold uppercase tracking-wider w-[52px] flex-shrink-0 ${color}`}>{label}</span>
+    <div className="space-y-1">
+      <span className={`text-[10px] font-semibold uppercase tracking-wider ${color}`}>{label}</span>
       <select
         value={selectedProvider}
         onChange={e => {
           const pid = e.target.value;
           const prov = providers.find(p => p.id === pid);
-          // Atomic update: change provider AND model together
           onSelectionChange(pid, prov?.default_model || '');
         }}
-        className="flex-[0.8] min-w-0 px-1.5 py-1 rounded bg-zinc-800 border border-white/10 text-[11px] text-white focus:outline-none focus:border-pink-500/50 appearance-none cursor-pointer"
+        className="w-full px-2 py-1.5 rounded bg-zinc-800 border border-white/10 text-[11px] text-white focus:outline-none focus:border-pink-500/50 appearance-none cursor-pointer"
         title={`${label} Provider`}
       >
         {providers.map(p => (
@@ -75,7 +74,7 @@ const RowSelector: React.FC<{
       <select
         value={selectedModel}
         onChange={e => onSelectionChange(selectedProvider, e.target.value)}
-        className="flex-1 min-w-0 px-1.5 py-1 rounded bg-zinc-800 border border-white/10 text-[11px] text-white focus:outline-none focus:border-pink-500/50 appearance-none cursor-pointer"
+        className="w-full px-2 py-1.5 rounded bg-zinc-800 border border-white/10 text-[11px] text-white focus:outline-none focus:border-pink-500/50 appearance-none cursor-pointer"
         title={`${label} Model`}
       >
         {models.map(m => (
@@ -156,7 +155,7 @@ export const TripleProviderSelector: React.FC<TripleProviderSelectorProps> = ({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-3">
       <RowSelector
         label="Profile"
         color="text-amber-400"

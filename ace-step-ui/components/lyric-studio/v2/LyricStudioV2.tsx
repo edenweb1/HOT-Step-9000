@@ -677,6 +677,8 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                       setRecordingsFilter(genId);
                     }}
                     showToast={showToast}
+                    generationModel={loadSelections().generation}
+                    refinementModel={loadSelections().refinement}
                   />
                 )}
               </ContentTabs>
