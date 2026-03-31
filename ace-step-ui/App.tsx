@@ -769,7 +769,16 @@ function AppContent() {
         nextIndex = Math.floor(Math.random() * queue.length);
       } while (queue.length > 1 && nextIndex === currentIndex);
     } else {
-      nextIndex = (currentIndex + 1) % queue.length;
+      nextIndex = currentIndex + 1;
+      if (nextIndex >= queue.length) {
+        if (repeatMode === 'all') {
+          nextIndex = 0;
+        } else {
+          // repeatMode === 'none': stop at end of queue
+          setIsPlaying(false);
+          return;
+        }
+      }
     }
 
     const nextSong = queue[nextIndex];
