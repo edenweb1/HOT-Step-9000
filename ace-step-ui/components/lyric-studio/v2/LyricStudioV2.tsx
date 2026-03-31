@@ -223,12 +223,15 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
 
   // ── Load album detail data ──
   const loadAlbumData = useCallback(async (albumId: number) => {
+    const t0 = performance.now();
+    console.log(`[loadAlbumData] START albumId=${albumId}`);
     try {
       // Fetch album details and profiles in parallel
       const [fullAlbum, profileRes] = await Promise.all([
         lireekApi.getLyricsSet(albumId),
         lireekApi.listProfiles(albumId, true),
       ]);
+      console.log(`[loadAlbumData] albums+profiles fetched in ${(performance.now() - t0).toFixed(0)}ms — ${profileRes.profiles.length} profiles`);
       setNav(prev => ({ ...prev, selectedAlbum: fullAlbum }));
       setProfiles(profileRes.profiles);
 
@@ -243,8 +246,9 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
         }
       }
       setGenerations(allGens);
+      console.log(`[loadAlbumData] DONE in ${(performance.now() - t0).toFixed(0)}ms — ${allGens.length} generations`);
     } catch (err) {
-      console.error('[LyricStudioV2] Failed to load album data:', err);
+      console.error(`[loadAlbumData] FAILED after ${(performance.now() - t0).toFixed(0)}ms:`, err);
     }
   }, []);
 
@@ -286,6 +290,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
     setGenerations([]);
     setSongCount(0);
 
+    console.log(`[album-effect] Album changed → loading data for albumId=${albumId}`);
     loadAlbumData(albumId);
   }, [nav.selectedAlbum?.id, loadAlbumData]);
 
