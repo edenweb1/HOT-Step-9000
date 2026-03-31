@@ -102,6 +102,10 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
   const [queueOpen, setQueueOpen] = useState(false);
   const [promptEditorOpen, setPromptEditorOpen] = useState(false);
 
+  // ── Fetch lyrics progress ──
+  const [fetchingLyrics, setFetchingLyrics] = useState(false);
+  const [fetchingLabel, setFetchingLabel] = useState('');
+
   // ── Bulk queue data (all artists, loaded when queue opens) ──
   const [allLyricsSets, setAllLyricsSets] = useState<LyricsSet[]>([]);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
@@ -448,7 +452,10 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
   }, [nav.selectedAlbum, showToast]);
 
   const handleFetchLyrics = useCallback(async (artist: string, album: string, maxSongs: number) => {
-    showToast(`Fetching lyrics for ${artist}${album ? ` — ${album}` : ''}…`);
+    const label = `${artist}${album ? ` — ${album}` : ''}`;
+    setFetchingLyrics(true);
+    setFetchingLabel(label);
+    showToast(`Fetching lyrics for ${label}…`);
     try {
       const res = await lireekApi.fetchLyrics({ artist, album: album || undefined, max_songs: maxSongs });
       showToast(`Fetched ${res.songs_fetched} songs`);
@@ -461,6 +468,9 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
       }
     } catch (err: any) {
       showToast(`Fetch failed: ${err.message}`);
+    } finally {
+      setFetchingLyrics(false);
+      setFetchingLabel('');
     }
   }, [loadArtists, loadAlbums, nav.selectedArtist, nav.level, handleSelectArtist, showToast]);
 
@@ -534,6 +544,17 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
       {toast && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-zinc-800/90 backdrop-blur-sm border border-white/10 text-sm text-white shadow-2xl ls2-slide-up">
           {toast}
+        </div>
+      )}
+
+      {/* Persistent fetch-lyrics indicator */}
+      {fetchingLyrics && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 rounded-xl bg-pink-950/80 backdrop-blur-sm border border-pink-500/20 text-sm text-pink-200 shadow-2xl ls2-slide-up">
+          <svg className="w-4 h-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Fetching lyrics for <strong className="text-white">{fetchingLabel}</strong>…</span>
         </div>
       )}
 
