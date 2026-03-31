@@ -14,7 +14,8 @@ interface SectionMarkersProps {
 }
 
 function parseSectionMarkers(raw: string): SectionMarker[] {
-    const markers: SectionMarker[] = [];
+    // Step 1: Parse ALL lines — both section markers and lyric lines
+    const allEntries: { time: number; text: string; isSection: boolean }[] = [];
     for (const line of raw.replace(/\r/g, '').split('\n')) {
         const match = line.match(/^\[(\d+):(\d+)(?:\.(\d+))?\]\s*(.*)$/);
         if (match) {
@@ -22,18 +23,63 @@ function parseSectionMarkers(raw: string): SectionMarker[] {
             const secs = parseInt(match[2], 10);
             const cs = match[3] ? parseInt(match[3].padEnd(2, '0').slice(0, 2), 10) : 0;
             const text = match[4].trim();
-            // Only keep section markers: text wrapped in brackets like [Verse 1 - driving]
-            if (/^\[.*\]$/.test(text)) {
-                // Strip brackets and everything after " - "
-                let label = text.slice(1, -1); // remove [ and ]
-                const dashIdx = label.indexOf(' - ');
-                if (dashIdx !== -1) label = label.slice(0, dashIdx);
-                // Capitalize first letter
-                label = label.charAt(0).toUpperCase() + label.slice(1);
-                markers.push({ time: mins * 60 + secs + cs / 100, label });
-            }
+            const time = mins * 60 + secs + cs / 100;
+            const isSection = /^\[.*\]$/.test(text);
+            allEntries.push({ time, text, isSection });
         }
     }
+    allEntries.sort((a, b) => a.time - b.time);
+
+    // Step 2: Extract section markers and determine their real start time
+    // LRC section timestamps (e.g. [Intro] at 0:00, [Verse 1] at 0:00.24) are
+    // unreliable — they cluster near 0. The first actual lyric line AFTER a section
+    // marker tells us when that section's vocals really begin in the audio.
+    const sectionIndices: number[] = [];
+    for (let i = 0; i < allEntries.length; i++) {
+        if (allEntries[i].isSection) sectionIndices.push(i);
+    }
+
+    const markers: SectionMarker[] = [];
+    for (let si = 0; si < sectionIndices.length; si++) {
+        const idx = sectionIndices[si];
+        const entry = allEntries[idx];
+        // Clean the label: strip brackets, remove style hints after " - "
+        let label = entry.text.slice(1, -1); // remove [ and ]
+        const dashIdx = label.indexOf(' - ');
+        if (dashIdx !== -1) label = label.slice(0, dashIdx);
+        label = label.charAt(0).toUpperCase() + label.slice(1);
+
+        // Find the first actual lyric line between this section and the next section
+        const nextSectionIdx = si + 1 < sectionIndices.length
+            ? sectionIndices[si + 1]
+            : allEntries.length;
+        let firstLyricTime: number | null = null;
+        for (let j = idx + 1; j < nextSectionIdx; j++) {
+            if (!allEntries[j].isSection && allEntries[j].text.length > 0) {
+                firstLyricTime = allEntries[j].time;
+                break;
+            }
+        }
+
+        // Use the first lyric timestamp as the real section start if it's
+        // significantly later than the marker (>1s gap = instrumental lead-in).
+        // Sections with no lyrics (e.g. purely instrumental Intro) keep marker time.
+        const realTime = (firstLyricTime !== null && firstLyricTime - entry.time > 1)
+            ? firstLyricTime
+            : entry.time;
+
+        markers.push({ time: realTime, label });
+    }
+
+    // Step 3: If the first marker starts well after 0:00 and there's no explicit Intro,
+    // insert a synthetic Intro marker so the instrumental opening is represented.
+    if (markers.length > 0 && markers[0].time > 2) {
+        const firstLabel = markers[0].label.toLowerCase();
+        if (firstLabel !== 'intro' && firstLabel !== 'introduction') {
+            markers.unshift({ time: 0, label: 'Intro' });
+        }
+    }
+
     return markers.sort((a, b) => a.time - b.time);
 }
 
