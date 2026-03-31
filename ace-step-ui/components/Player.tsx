@@ -346,7 +346,7 @@ export const Player: React.FC<PlayerProps> = ({
                             </button>
                         )}
                         <button
-                            onClick={handleDownload}
+                            onClick={() => onDownloadFormat ? onDownloadFormat() : handleDownload()}
                             className="p-3 tap-highlight-none"
                             title={t('downloadAudio')}
                         >
@@ -661,7 +661,7 @@ export const Player: React.FC<PlayerProps> = ({
                                     </button>
                                 )}
                                 <button
-                                    onClick={handleDownload}
+                                    onClick={() => onDownloadFormat ? onDownloadFormat() : handleDownload()}
                                     className="p-3 rounded-full hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors"
                                     title={t('downloadAudio')}
                                 >
@@ -899,7 +899,7 @@ export const Player: React.FC<PlayerProps> = ({
                     </div>
 
                     <button
-                        onClick={handleDownload}
+                        onClick={() => onDownloadFormat ? onDownloadFormat() : handleDownload()}
                         className="p-1.5 lg:p-2 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-full transition-colors hidden lg:block"
                         title={t('downloadAudio')}
                     >
