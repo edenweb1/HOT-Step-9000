@@ -174,7 +174,7 @@ export const lireekApi = {
     provider: string;
     model?: string;
   }): Promise<Profile> =>
-    api(`/api/lireek/lyrics-sets/${lyricsSetId}/build-profile`, { method: 'POST', body: params }),
+    api(`/api/lireek/lyrics-sets/${lyricsSetId}/build-profile`, { method: 'POST', body: params, timeoutMs: 300_000 }),
 
   listGenerations: (profileId?: number, includeFull?: boolean): Promise<{ generations: Generation[] }> => {
     const params = new URLSearchParams();
@@ -196,13 +196,13 @@ export const lireekApi = {
     model?: string;
     extra_instructions?: string;
   }): Promise<Generation> =>
-    api(`/api/lireek/profiles/${profileId}/generate`, { method: 'POST', body: params }),
+    api(`/api/lireek/profiles/${profileId}/generate`, { method: 'POST', body: params, timeoutMs: 300_000 }),
 
   refineLyrics: (generationId: number, params: {
     provider: string;
     model?: string;
   }): Promise<Generation> =>
-    api(`/api/lireek/generations/${generationId}/refine`, { method: 'POST', body: params }),
+    api(`/api/lireek/generations/${generationId}/refine`, { method: 'POST', body: params, timeoutMs: 300_000 }),
 
   updateMetadata: (generationId: number, updates: {
     title?: string;
