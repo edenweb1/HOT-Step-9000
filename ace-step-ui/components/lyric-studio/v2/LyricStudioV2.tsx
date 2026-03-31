@@ -404,6 +404,26 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
     }
   }, [nav.selectedArtist, loadAlbums, showToast]);
 
+  const handleRefreshAlbumImage = useCallback(async (album: LyricsSet) => {
+    try {
+      const res = await lireekApi.refreshAlbumImage(album.id);
+      setAlbums(prev => prev.map(a => a.id === album.id ? { ...a, image_url: res.image_url } : a));
+      showToast('Album image updated');
+    } catch {
+      showToast('Could not find album image on Genius');
+    }
+  }, [showToast]);
+
+  const handleSetAlbumImage = useCallback(async (album: LyricsSet, url: string) => {
+    try {
+      const res = await lireekApi.setAlbumImage(album.id, url);
+      setAlbums(prev => prev.map(a => a.id === album.id ? { ...a, image_url: res.image_url } : a));
+      showToast('Album image set');
+    } catch (err: any) {
+      showToast(`Failed: ${err.message}`);
+    }
+  }, [showToast]);
+
   const handleDeleteSong = useCallback(async (index: number) => {
     if (!nav.selectedAlbum) return;
     try {
@@ -597,6 +617,8 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                 onSelectAlbum={handleSelectAlbum}
                 onAddAlbum={openFetchForArtist}
                 onDeleteAlbum={handleDeleteAlbum}
+                onRefreshImage={handleRefreshAlbumImage}
+                onSetImage={handleSetAlbumImage}
               />
             </div>
           </div>

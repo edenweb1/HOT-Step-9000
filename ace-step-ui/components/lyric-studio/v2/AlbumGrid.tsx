@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Disc3, Plus, FileText, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Disc3, Plus, FileText, MoreVertical, RefreshCw, Link2, Trash2 } from 'lucide-react';
 import { LyricsSet, SongLyric } from '../../../services/lyricStudioApi';
 
 function parseSongs(songs: SongLyric[] | string): SongLyric[] {
@@ -16,12 +16,29 @@ interface AlbumGridProps {
   onSelectAlbum: (album: LyricsSet) => void;
   onAddAlbum: () => void;
   onDeleteAlbum: (album: LyricsSet) => void;
+  onRefreshImage?: (album: LyricsSet) => void;
+  onSetImage?: (album: LyricsSet, url: string) => void;
 }
 
 export const AlbumGrid: React.FC<AlbumGridProps> = ({
-  albums, loading, artistName, onSelectAlbum, onAddAlbum, onDeleteAlbum,
+  albums, loading, artistName, onSelectAlbum, onAddAlbum, onDeleteAlbum, onRefreshImage, onSetImage,
 }) => {
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    if (menuOpenId === null) return;
+    const handler = (e: MouseEvent) => {
+      if (gridRef.current && !gridRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpenId]);
+
   const gradient = (name: string) => {
     const hash = (name || 'album').split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
     const h1 = Math.abs(hash) % 360;
@@ -73,7 +90,7 @@ export const AlbumGrid: React.FC<AlbumGridProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {albums.map((album, idx) => {
             const songs = parseSongs(album.songs);
             return (
@@ -121,6 +138,56 @@ export const AlbumGrid: React.FC<AlbumGridProps> = ({
 
                 {/* Hover ring */}
                 <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10 group-hover:ring-indigo-500/40 transition-all duration-300" />
+
+                {/* Context menu button */}
+                <button
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white/60 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpenId(menuOpenId === album.id ? null : album.id);
+                  }}
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {/* Context menu */}
+                {menuOpenId === album.id && (
+                  <div
+                    className="absolute top-10 right-2 z-20 min-w-[160px] rounded-xl bg-zinc-900 border border-white/10 shadow-2xl py-1 animate-in fade-in slide-in-from-top-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {onRefreshImage && (
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                        onClick={() => { onRefreshImage(album); setMenuOpenId(null); }}
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Re-fetch from Genius
+                      </button>
+                    )}
+                    {onSetImage && (
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                        onClick={() => {
+                          setMenuOpenId(null);
+                          const url = prompt(`Paste an image URL for "${album.album || 'Album'}":`, album.image_url || '');
+                          if (url && url.trim()) onSetImage(album, url.trim());
+                        }}
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                        Set Custom Image
+                      </button>
+                    )}
+                    <div className="border-t border-white/5 my-1" />
+                    <button
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                      onClick={() => { onDeleteAlbum(album); setMenuOpenId(null); }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Album
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

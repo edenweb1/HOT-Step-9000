@@ -154,6 +154,20 @@ def register_lireek_routes(app: FastAPI) -> None:
             if conn:
                 conn.close()
 
+    class SetAlbumImageRequest(BaseModel):
+        image_url: str
+
+    @app.post("/api/lireek/lyrics-sets/{ls_id}/set-image")
+    async def set_album_image(ls_id: int, body: SetAlbumImageRequest):
+        """Set a custom image URL for an album (user override)."""
+        from acestep.api.lireek.lireek_db import update_lyrics_set_image
+        image_url = body.image_url.strip()
+        if not image_url:
+            raise HTTPException(status_code=400, detail="image_url is required")
+        if not update_lyrics_set_image(ls_id, image_url):
+            raise HTTPException(status_code=404, detail="Lyrics set not found")
+        return {"image_url": image_url}
+
     # ── Lyrics Sets ───────────────────────────────────────────────────────
 
     @app.get("/api/lireek/lyrics-sets")

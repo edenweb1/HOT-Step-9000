@@ -148,6 +148,9 @@ export const lireekApi = {
   refreshAlbumImage: (id: number): Promise<{ image_url: string }> =>
     api(`/api/lireek/lyrics-sets/${id}/refresh-image`, { method: 'POST' }),
 
+  setAlbumImage: (id: number, imageUrl: string): Promise<{ image_url: string }> =>
+    api(`/api/lireek/lyrics-sets/${id}/set-image`, { method: 'POST', body: { image_url: imageUrl } }),
+
   // ── Genius Fetch ────────────────────────────────────────────────────────
   fetchLyrics: (params: {
     artist: string;
