@@ -1665,7 +1665,8 @@ class AceStepConditionGenerationModel(AceStepPreTrainedModel):
         # tokenize and detokenize to get LM hints for cover songs (when is_covers=True)
         # Use precomputed hints if provided (e.g., from audio codes), otherwise tokenize hidden_states
         if precomputed_lm_hints_25Hz is not None:
-            print("Using precomputed LM hints")
+            from loguru import logger as _log
+            _log.info("[prepare_condition] Using precomputed LM hints")
             lm_hints_25Hz = precomputed_lm_hints_25Hz[:, :src_latents.shape[1], :]
         else:
             if audio_codes is not None:
@@ -1680,10 +1681,11 @@ class AceStepConditionGenerationModel(AceStepPreTrainedModel):
         context_latents = torch.cat([src_latents, chunk_masks.to(dtype)], dim=-1)
 
         # ── DIAGNOSTIC: conditioning tensor fingerprint ────────────
+        from loguru import logger as _log
         _ctx_mean = context_latents.float().mean().item()
         _ctx_std = context_latents.float().std().item()
         _src_mean = src_latents.float().mean().item()
-        print(
+        _log.info(
             f"[DIAG-C] prepare_condition (BASE): is_covers={is_covers.tolist()}, "
             f"has_precomputed_hints={precomputed_lm_hints_25Hz is not None}, "
             f"context_latents shape={tuple(context_latents.shape)}, "
