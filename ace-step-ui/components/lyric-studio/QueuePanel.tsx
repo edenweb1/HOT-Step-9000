@@ -350,7 +350,7 @@ export const QueuePanel: React.FC<QueuePanelProps> = ({
                   <EditableSlider
                     label="Adapter Scale"
                     value={adapterScale}
-                    min={0} max={2} step={0.05}
+                    min={0} max={4} step={0.05}
                     onChange={setAdapterScale}
                     formatDisplay={(v) => v.toFixed(2)}
                   />
@@ -366,21 +366,21 @@ export const QueuePanel: React.FC<QueuePanelProps> = ({
                       <EditableSlider
                         label="Self-Attn"
                         value={selfAttn}
-                        min={0} max={2} step={0.05}
+                        min={0} max={4} step={0.05}
                         onChange={setSelfAttn}
                         formatDisplay={(v) => v.toFixed(2)}
                       />
                       <EditableSlider
                         label="Cross-Attn"
                         value={crossAttn}
-                        min={0} max={2} step={0.05}
+                        min={0} max={4} step={0.05}
                         onChange={setCrossAttn}
                         formatDisplay={(v) => v.toFixed(2)}
                       />
                       <EditableSlider
                         label="MLP"
                         value={mlp}
-                        min={0} max={2} step={0.05}
+                        min={0} max={4} step={0.05}
                         onChange={setMlp}
                         formatDisplay={(v) => v.toFixed(2)}
                       />

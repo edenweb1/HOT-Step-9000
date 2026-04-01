@@ -204,7 +204,7 @@ export const PresetSettingsModal: React.FC<PresetSettingsModalProps> = ({
                     label="Adapter Scale"
                     value={form.adapter_scale}
                     min={0}
-                    max={2}
+                    max={4}
                     step={0.05}
                     onChange={(v) => setForm(p => ({ ...p, adapter_scale: v }))}
                     formatDisplay={(v) => v.toFixed(2)}
@@ -225,7 +225,7 @@ export const PresetSettingsModal: React.FC<PresetSettingsModalProps> = ({
                         <EditableSlider
                           label="Self-Attn"
                           value={form.self_attn}
-                          min={0} max={2} step={0.05}
+                          min={0} max={4} step={0.05}
                           onChange={(v) => setForm(p => ({ ...p, self_attn: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
                           helpText="Controls how audio frames relate to each other over time"
@@ -234,7 +234,7 @@ export const PresetSettingsModal: React.FC<PresetSettingsModalProps> = ({
                         <EditableSlider
                           label="Cross-Attn"
                           value={form.cross_attn}
-                          min={0} max={2} step={0.05}
+                          min={0} max={4} step={0.05}
                           onChange={(v) => setForm(p => ({ ...p, cross_attn: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
                           helpText="How strongly the text prompt shapes the output vs. the adapter"
@@ -243,7 +243,7 @@ export const PresetSettingsModal: React.FC<PresetSettingsModalProps> = ({
                         <EditableSlider
                           label="MLP"
                           value={form.mlp}
-                          min={0} max={2} step={0.05}
+                          min={0} max={4} step={0.05}
                           onChange={(v) => setForm(p => ({ ...p, mlp: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
                           helpText="Controls the adapter's stored timbre, tonal texture, and sonic character"

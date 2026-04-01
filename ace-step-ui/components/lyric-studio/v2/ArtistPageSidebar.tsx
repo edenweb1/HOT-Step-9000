@@ -147,7 +147,7 @@ export const ArtistPageSidebar: React.FC<ArtistPageSidebarProps> = ({
                 <EditableSlider
                   label="Overall Scale"
                   value={globalOverallScale}
-                  min={0} max={2} step={0.05}
+                  min={0} max={4} step={0.05}
                   onChange={setGlobalOverallScale}
                   formatDisplay={(v) => v.toFixed(2)}
                 />
@@ -155,7 +155,7 @@ export const ArtistPageSidebar: React.FC<ArtistPageSidebarProps> = ({
                   <EditableSlider
                     label="Self-Attn"
                     value={globalGroupScales.self_attn}
-                    min={0} max={2} step={0.05}
+                    min={0} max={4} step={0.05}
                     onChange={(v) => setGlobalGroupScales(prev => ({ ...prev, self_attn: v }))}
                     formatDisplay={(v) => v.toFixed(2)}
                     helpText="Controls how audio frames relate to each other over time"
@@ -163,7 +163,7 @@ export const ArtistPageSidebar: React.FC<ArtistPageSidebarProps> = ({
                   <EditableSlider
                     label="Cross-Attn"
                     value={globalGroupScales.cross_attn}
-                    min={0} max={2} step={0.05}
+                    min={0} max={4} step={0.05}
                     onChange={(v) => setGlobalGroupScales(prev => ({ ...prev, cross_attn: v }))}
                     formatDisplay={(v) => v.toFixed(2)}
                     helpText="How strongly the text prompt shapes the output vs. the adapter"
@@ -171,7 +171,7 @@ export const ArtistPageSidebar: React.FC<ArtistPageSidebarProps> = ({
                   <EditableSlider
                     label="MLP"
                     value={globalGroupScales.mlp}
-                    min={0} max={2} step={0.05}
+                    min={0} max={4} step={0.05}
                     onChange={(v) => setGlobalGroupScales(prev => ({ ...prev, mlp: v }))}
                     formatDisplay={(v) => v.toFixed(2)}
                     helpText="Controls the adapter's stored timbre, tonal texture, and sonic character"

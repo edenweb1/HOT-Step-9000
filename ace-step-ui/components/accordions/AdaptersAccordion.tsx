@@ -255,7 +255,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                     label={t('loraScale')}
                                     value={loraScale}
                                     min={0}
-                                    max={2}
+                                    max={4}
                                     step={0.05}
                                     onChange={onLoraScaleChange}
                                     formatDisplay={(val) => val.toFixed(2)}
@@ -473,7 +473,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                 label={`Scale`}
                                                 value={slot.scale}
                                                 min={0}
-                                                max={2}
+                                                max={4}
                                                 step={0.05}
                                                 onChange={(v) => onSlotScaleChange(slot.slot, v)}
                                                 onChangeCommitted={(v) => onSlotScaleChange(slot.slot, v)}
@@ -511,7 +511,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                                 label={info.label}
                                                                 value={slot.group_scales[group]}
                                                                 min={0}
-                                                                max={2}
+                                                                max={4}
                                                                 step={0.05}
                                                                 onChange={(v) => onSlotGroupScaleChange(slot.slot, group, v)}
                                                                 onChangeCommitted={(v) => onSlotGroupScaleChange(slot.slot, group, v)}
@@ -573,7 +573,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                                     <input
                                                                         type="range"
                                                                         min={0}
-                                                                        max={2}
+                                                                        max={4}
                                                                         step={0.05}
                                                                         value={pendingRoleBlend[`${slot.slot}-${key}`] ?? avg}
                                                                         onChange={(e) => {
@@ -640,7 +640,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                                     <input
                                                                         type="range"
                                                                         min={0}
-                                                                        max={2}
+                                                                        max={4}
                                                                         step={0.05}
                                                                         value={pendingLayerScale[`${slot.slot}-layer-${i}`] ?? val}
                                                                         onChange={(e) => setPendingLayerScale(prev => ({ ...prev, [`${slot.slot}-layer-${i}`]: parseFloat(e.target.value) }))}
@@ -699,7 +699,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                 label="Overall Scale"
                                                 value={globalOverallScale ?? 1.0}
                                                 min={0}
-                                                max={2}
+                                                max={4}
                                                 step={0.05}
                                                 onChange={(v) => onGlobalOverallScaleChange?.(v)}
                                                 onChangeCommitted={(v) => onGlobalOverallScaleChange?.(v)}
@@ -728,7 +728,7 @@ export const AdaptersAccordion: React.FC<AdaptersAccordionProps> = ({
                                                             label={info.label}
                                                             value={globalGroupScales?.[group] ?? 1.0}
                                                             min={0}
-                                                            max={2}
+                                                            max={4}
                                                             step={0.05}
                                                             onChange={(v) => onGlobalGroupScaleChange?.(group, v)}
                                                             onChangeCommitted={(v) => onGlobalGroupScaleChange?.(group, v)}

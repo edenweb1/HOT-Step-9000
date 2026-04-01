@@ -1051,7 +1051,7 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
                     label="Adapter Scale"
                     value={presetForm.adapter_scale}
                     min={0}
-                    max={2}
+                    max={4}
                     step={0.05}
                     onChange={(v) => setPresetForm(p => ({ ...p, adapter_scale: v }))}
                     formatDisplay={(v) => v.toFixed(2)}
@@ -1073,7 +1073,7 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
                           label="Self-Attn"
                           value={presetForm.self_attn}
                           min={0}
-                          max={2}
+                          max={4}
                           step={0.05}
                           onChange={(v) => setPresetForm(p => ({ ...p, self_attn: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
@@ -1084,7 +1084,7 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
                           label="Cross-Attn"
                           value={presetForm.cross_attn}
                           min={0}
-                          max={2}
+                          max={4}
                           step={0.05}
                           onChange={(v) => setPresetForm(p => ({ ...p, cross_attn: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
@@ -1095,7 +1095,7 @@ export const LyricStudio: React.FC<{ onPlaySong?: (song: Song) => void }> = ({ o
                           label="MLP"
                           value={presetForm.mlp}
                           min={0}
-                          max={2}
+                          max={4}
                           step={0.05}
                           onChange={(v) => setPresetForm(p => ({ ...p, mlp: v }))}
                           formatDisplay={(v) => v.toFixed(2)}
