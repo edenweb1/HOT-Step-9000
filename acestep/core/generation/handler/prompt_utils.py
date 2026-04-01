@@ -52,6 +52,53 @@ class PromptMixin:
             logger.exception("[extract_caption_from_sft_format] Error extracting caption")
             return caption
 
+    def _inject_trigger_word(self, caption: str) -> str:
+        """Inject adapter trigger word(s) into a caption if set.
+
+        Reads from ``_adapter_slots`` (advanced multi-adapter mode) or
+        ``_adapter_trigger_word`` (basic single-adapter mode).  Skips
+        injection when the trigger word is already present in the caption
+        (case-insensitive) to avoid double-injection from callers that
+        already prepend it client-side (e.g. LyricStudio).
+        """
+        # Collect trigger words from all active slots (advanced mode)
+        _slots: dict = getattr(self, "_adapter_slots", {})
+        if _slots:
+            _seen: set = set()
+            _words: list = []
+            _position = "prepend"
+            for _sid in sorted(_slots.keys()):
+                tw = _slots[_sid].get("trigger_word", "")
+                pos = _slots[_sid].get("tag_position", "prepend")
+                if tw and tw not in _seen:
+                    _words.append(tw)
+                    _seen.add(tw)
+                    _position = pos  # last-wins for position (same as before)
+            combined = ", ".join(_words)
+        else:
+            # Basic mode fallback
+            combined = getattr(self, "_adapter_trigger_word", "")
+            _position = getattr(self, "_adapter_tag_position", "prepend")
+
+        if not combined:
+            return caption
+
+        # Skip if already present (case-insensitive)
+        if combined.lower() in caption.lower():
+            return caption
+
+        if _position == "replace":
+            logger.info(f"[TriggerWord] Replacing caption with trigger word '{combined}'")
+            return combined
+        elif _position == "append":
+            result = f"{caption}, {combined}" if caption.strip() else combined
+            logger.info(f"[TriggerWord] Appended '{combined}' → caption")
+            return result
+        else:  # prepend (default)
+            result = f"{combined}, {caption}" if caption.strip() else combined
+            logger.info(f"[TriggerWord] Prepended '{combined}' → caption")
+            return result
+
     def build_dit_inputs(
         self,
         task: str,
@@ -94,6 +141,9 @@ class PromptMixin:
                 actual_caption = str(meta_dict["caption"])
             if "language" in meta_dict and meta_dict["language"]:
                 actual_language = str(meta_dict["language"])
+
+        # Inject trigger word into caption before building prompt
+        actual_caption = self._inject_trigger_word(actual_caption)
 
         parsed_meta = self._parse_metas([metas])[0]
         caption_input = SFT_GEN_PROMPT.format(final_instruction, actual_caption, parsed_meta)

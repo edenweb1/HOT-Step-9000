@@ -743,7 +743,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         const placement = (localStorage.getItem('ace-globalTriggerPlacement') as 'prepend' | 'append' | 'replace') || 'prepend';
         if (useFilename) {
           const fileName = filePath.replace(/\\/g, '/').split('/').pop() || '';
-          const triggerWord = fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ');
+          const triggerWord = fileName.replace(/\.safetensors$/i, '');
           const newSlot = status.advanced.slots.find((s: any) => s.path === filePath);
           if (newSlot) {
             try {
@@ -830,7 +830,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
       for (const slot of adapterSlots) {
         const fileName = slot.path.replace(/\\/g, '/').split('/').pop() || '';
         const triggerWord = globalTriggerUseFilename
-          ? fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ')
+          ? fileName.replace(/\.safetensors$/i, '')
           : '';
         try {
           await generateApi.setSlotTriggerWord({
@@ -852,7 +852,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     if (!globalTriggerUseFilename || adapterSlots.length === 0) return '';
     return adapterSlots.map(slot => {
       const fileName = slot.path.replace(/\\/g, '/').split('/').pop() || '';
-      return fileName.replace(/\.safetensors$/i, '').replace(/_/g, ' ');
+      return fileName.replace(/\.safetensors$/i, '');
     }).filter(Boolean).join(', ');
   }, [globalTriggerUseFilename, adapterSlots]);
 

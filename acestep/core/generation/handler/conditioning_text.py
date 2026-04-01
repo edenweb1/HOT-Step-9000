@@ -67,6 +67,9 @@ class ConditioningTextMixin:
         """Tokenize caption/lyric prompts and optional non-cover branch prompts."""
         actual_captions, actual_languages = self._extract_caption_and_language(parsed_metas, captions, vocal_languages)
 
+        # Inject trigger word(s) into captions
+        actual_captions = [self._inject_trigger_word(c) for c in actual_captions]
+
         text_inputs = []
         text_token_idss = []
         text_attention_masks = []
