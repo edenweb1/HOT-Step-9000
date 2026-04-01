@@ -954,11 +954,16 @@ def generate_music(
                     or (isinstance(audio_code_string_to_use, str) and audio_code_string_to_use.strip())
                 )
                 if has_codes and params.audio_cover_strength <= 0.0:
+                    # Upstream ACE-Step default is 1.0 — all diffusion steps
+                    # use the audio code conditioning. The LM codes act as a
+                    # full structural blueprint for the DiT.
+                    thinking_cover_strength = 1.0
                     logger.info(
                         f"[generate_music] Thinking mode: overriding audio_cover_strength "
-                        f"from {params.audio_cover_strength} → 1.0 (LM audio codes need cover conditioning)"
+                        f"from {params.audio_cover_strength} → {thinking_cover_strength} "
+                        f"(LM audio codes need cover conditioning)"
                     )
-                    params.audio_cover_strength = 1.0
+                    params.audio_cover_strength = thinking_cover_strength
             else:
                 # For "dit" mode, keep user-provided codes or empty
                 audio_code_string_to_use = params.audio_codes
