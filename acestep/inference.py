@@ -1570,6 +1570,11 @@ def generate_music(
                 except Exception as e:
                     logger.warning(f"[generate_music] DiT alignment scoring failed: {e}")
 
+        # Release CUDA memory pools allocated during scoring
+        if scores and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            logger.debug("[generate_music] CUDA cache cleared after scoring")
+
         # Merge extra_outputs: include dit_extra_outputs (latents, masks) and add LM metadata
         extra_outputs = dit_extra_outputs.copy()
         extra_outputs["lm_metadata"] = lm_generated_metadata

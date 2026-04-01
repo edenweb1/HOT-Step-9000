@@ -112,17 +112,28 @@ class LyricScoreMixin(LyricAlignmentCommonMixin):
             if decoder_outputs[2] is None:
                 return self._lyric_score_error("Model did not return attentions")
 
+            # Move attention matrices to CPU immediately to free GPU VRAM.
+            # output_attentions=True produces massive tensors (layers × heads × batch × tokens × frames)
+            # that can easily consume 5-9 GB.
             captured_layers = []
             for layer_attn in decoder_outputs[2]:
                 if layer_attn is None:
                     continue
-                captured_layers.append(layer_attn.transpose(-1, -2))
+                captured_layers.append(layer_attn.transpose(-1, -2).cpu())
+
+            # Explicitly free the decoder outputs (huge GPU tensors)
+            del decoder_outputs
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             if not captured_layers:
                 return self._lyric_score_error("No valid attention layers returned")
 
             stacked = torch.stack(captured_layers)
+            del captured_layers
             all_layers_matrix_lm = stacked[:, :bsz, ...]
             all_layers_matrix_dit = stacked[:, bsz:, ...]
+            del stacked
             if bsz == 1:
                 all_layers_matrix_lm = all_layers_matrix_lm.squeeze(1)
                 all_layers_matrix_dit = all_layers_matrix_dit.squeeze(1)
@@ -136,6 +147,7 @@ class LyricScoreMixin(LyricAlignmentCommonMixin):
 
             pure_matrix_lm = all_layers_matrix_lm[..., start_idx:end_idx, :]
             pure_matrix_dit = all_layers_matrix_dit[..., start_idx:end_idx, :]
+            del all_layers_matrix_lm, all_layers_matrix_dit
 
             from acestep.core.scoring.dit_score import MusicLyricScorer
 
@@ -152,6 +164,8 @@ class LyricScoreMixin(LyricAlignmentCommonMixin):
                 pure_lyric_ids=pure_lyric_ids,
                 custom_layers_config=custom_layers_config,
             )
+            del pure_matrix_lm, pure_matrix_dit
+
             return {
                 "lm_score": lm_score,
                 "dit_score": dit_score,
