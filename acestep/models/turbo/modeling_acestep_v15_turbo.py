@@ -1667,16 +1667,15 @@ class AceStepConditionGenerationModel(AceStepPreTrainedModel):
         context_latents = torch.cat([src_latents, chunk_masks.to(dtype)], dim=-1)
 
         # ── DIAGNOSTIC: conditioning tensor fingerprint ────────────
-        import hashlib as _hl
-        _ctx_bytes = context_latents.float().cpu().numpy().tobytes()[:4096]
-        _ctx_hash = _hl.md5(_ctx_bytes).hexdigest()[:12]
-        logger.info(
+        _ctx_mean = context_latents.float().mean().item()
+        _ctx_std = context_latents.float().std().item()
+        _src_mean = src_latents.float().mean().item()
+        print(
             f"[DIAG-C] prepare_condition: is_covers={is_covers.tolist()}, "
             f"has_precomputed_hints={precomputed_lm_hints_25Hz is not None}, "
-            f"context_latents hash={_ctx_hash}, "
-            f"shape={tuple(context_latents.shape)}, "
-            f"mean={context_latents.float().mean().item():.6f}, "
-            f"std={context_latents.float().std().item():.6f}"
+            f"context_latents shape={tuple(context_latents.shape)}, "
+            f"ctx_mean={_ctx_mean:.6f}, ctx_std={_ctx_std:.6f}, "
+            f"src_mean={_src_mean:.6f}"
         )
         # ── END DIAGNOSTIC ─────────────────────────────────────────
 
