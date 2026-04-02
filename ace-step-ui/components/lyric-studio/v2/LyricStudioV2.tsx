@@ -125,7 +125,8 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
 
   // ── Audio generation jobs ──
   // Audio queue (replaces old activeJobs + AudioJobProgress)
-  const audioQueue = useAudioGenQueue();
+  // Passing token enables auto-resume of persisted in-flight jobs after reload
+  const audioQueue = useAudioGenQueue(token || undefined);
 
   // ── Toast ──
   const [toast, setToast] = useState<string | null>(null);

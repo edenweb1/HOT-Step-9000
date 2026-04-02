@@ -5,11 +5,13 @@
  * - Artist-batched execution (reorders pending items to minimize adapter switches)
  * - Deferred adapter/matchering loading (only when item starts running)
  * - Progress polling and status tracking
+ * - **localStorage persistence** — queue survives page reloads / HMR
+ * - **Resume on reload** — in-flight jobs resume polling automatically
  *
  * Components subscribe via `useAudioGenQueue()` which uses `useSyncExternalStore`.
  */
 
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, useEffect } from 'react';
 import { lireekApi, Generation, AlbumPreset } from '../services/lyricStudioApi';
 import { generateApi, songsApi, GenerationJob } from '../services/api';
 
@@ -114,17 +116,49 @@ function applyTriggerWord(params: Record<string, any>, adapterPath: string): voi
   else { params.style = current ? `${triggerWord}, ${current}` : triggerWord; }
 }
 
+// ── Persistence ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'lireek-audio-gen-queue';
+
+function _persist(): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      items: _state.items,
+      completionCounter: _state.completionCounter,
+    }));
+  } catch { /* quota exceeded etc */ }
+}
+
+function _restore(): AudioGenQueueState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { items: [], completionCounter: 0 };
+    const parsed = JSON.parse(raw);
+    const items: AudioQueueItem[] = (parsed.items || []).map((item: AudioQueueItem) => {
+      // Items that were mid-load when the page died → reset to pending
+      if (item.status === 'loading-adapter') {
+        return { ...item, status: 'pending' as AudioQueueStatus, stage: undefined, progress: undefined };
+      }
+      return item;
+    });
+    return {
+      items,
+      completionCounter: parsed.completionCounter || 0,
+    };
+  } catch {
+    return { items: [], completionCounter: 0 };
+  }
+}
+
 // ── Module-level singleton ───────────────────────────────────────────────────
 
-let _state: AudioGenQueueState = {
-  items: [],
-  completionCounter: 0,
-};
+let _state: AudioGenQueueState = _restore();
 
 const _listeners = new Set<() => void>();
 
 function _emit() {
   _state = { ..._state, items: [..._state.items] };
+  _persist();
   _listeners.forEach(fn => fn());
 }
 
@@ -140,6 +174,11 @@ function _genId(): string { return `aq-${Date.now()}-${_nextId++}`; }
 // ── Track which adapter is currently loaded (to skip reloads) ────────────
 
 let _currentAdapterPath: string | null = null;
+
+// ── Resume tracking (prevent double-polling after HMR) ──────────────────
+
+const _resumedJobIds = new Set<string>();
+let _resumeCalled = false;
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -190,6 +229,32 @@ export function removeFromAudioQueue(id: string): void {
 export function clearFinishedFromAudioQueue(): void {
   _state.items = _state.items.filter(i => i.status !== 'succeeded' && i.status !== 'failed');
   _emit();
+}
+
+/**
+ * Resume the queue after a page reload.
+ * - In-flight jobs (status 'generating' with a jobId) → resume polling
+ * - Pending jobs → restart the queue runner
+ * Called by the useAudioGenQueue hook on mount.
+ */
+export function resumeQueue(token: string): void {
+  if (_resumeCalled) return;
+  _resumeCalled = true;
+
+  const hasPending = _state.items.some(i => i.status === 'pending');
+  const inFlight = _state.items.filter(i => i.status === 'generating' && i.jobId);
+
+  // Resume polling for in-flight jobs
+  for (const item of inFlight) {
+    if (_resumedJobIds.has(item.jobId!)) continue;
+    _resumedJobIds.add(item.jobId!);
+    _resumePolling(item, token);
+  }
+
+  // Restart queue runner for pending items
+  if (hasPending) {
+    _processQueue(token);
+  }
 }
 
 // ── Queue runner ─────────────────────────────────────────────────────────────
@@ -327,6 +392,7 @@ async function _executeItem(item: AudioQueueItem, token: string): Promise<void> 
   const res = await generateApi.startGeneration(params as any, token);
   const jobId = res.jobId || (res as any).job_id;
   item.jobId = jobId;
+  _emit(); // persist jobId immediately so it survives reload
 
   // 6) Link audio to Lireek generation
   if (jobId) {
@@ -334,8 +400,14 @@ async function _executeItem(item: AudioQueueItem, token: string): Promise<void> 
   }
 
   // 7) Poll until done
+  await _pollUntilDone(item, token);
+}
+
+/** Poll a job until it succeeds or fails. Shared between fresh submissions and resume. */
+async function _pollUntilDone(item: AudioQueueItem, token: string): Promise<void> {
+  const jobId = item.jobId!;
   item.stage = 'Generating audio…';
-  const startTime = Date.now();
+  const startTime = item.elapsed ? Date.now() - item.elapsed * 1000 : Date.now();
   _emit();
 
   while (true) {
@@ -375,8 +447,28 @@ async function _executeItem(item: AudioQueueItem, token: string): Promise<void> 
   }
 }
 
+/** Resume polling for a job that was in-flight when the page reloaded. */
+async function _resumePolling(item: AudioQueueItem, token: string): Promise<void> {
+  try {
+    await _pollUntilDone(item, token);
+    item.status = 'succeeded';
+    _state.completionCounter++;
+  } catch (err) {
+    item.status = 'failed';
+    item.error = (err as Error).message;
+  }
+  _emit();
+}
+
 // ── React hook ───────────────────────────────────────────────────────────────
 
-export function useAudioGenQueue(): AudioGenQueueState {
+export function useAudioGenQueue(token?: string): AudioGenQueueState {
+  // On mount: resume any persisted in-flight or pending jobs
+  useEffect(() => {
+    if (token && _state.items.length > 0) {
+      resumeQueue(token);
+    }
+  }, [token]);
+
   return useSyncExternalStore(_subscribe, _getSnapshot, _getSnapshot);
 }
