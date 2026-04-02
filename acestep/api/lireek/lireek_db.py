@@ -144,6 +144,13 @@ _MIGRATIONS = [
             "ALTER TABLE lyrics_sets ADD COLUMN image_url TEXT",
         ],
     ),
+    (
+        "SELECT audio_url FROM audio_generations LIMIT 0",
+        [
+            "ALTER TABLE audio_generations ADD COLUMN audio_url TEXT",
+            "ALTER TABLE audio_generations ADD COLUMN cover_url TEXT",
+        ],
+    ),
 ]
 
 
@@ -851,9 +858,8 @@ def delete_audio_generation(ag_id: int) -> bool:
 def get_recent_audio_generations(limit: int = 30) -> list[dict[str, Any]]:
     """Return recent audio generations across ALL artists with full context.
 
-    Joins: audio_generations → generations → profiles → lyrics_sets → artists
-    to provide everything the UI needs: job ID, song title, artist name,
-    album name, cover images, etc.
+    Joins: audio_generations → generations → profiles → lyrics_sets → artists.
+    Returns pre-resolved audio_url and cover_url when available.
     """
     conn = _connect()
     try:
@@ -862,6 +868,8 @@ def get_recent_audio_generations(limit: int = 30) -> list[dict[str, Any]]:
             SELECT
                 ag.id              AS ag_id,
                 ag.hotstep_job_id,
+                ag.audio_url,
+                ag.cover_url,
                 ag.created_at      AS ag_created_at,
                 g.id               AS generation_id,
                 g.title            AS song_title,
@@ -886,6 +894,39 @@ def get_recent_audio_generations(limit: int = 30) -> list[dict[str, Any]]:
             (limit,),
         ).fetchall()
         return [_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_audio_generation_urls(
+    ag_id: int, audio_url: str, cover_url: str | None = None
+) -> bool:
+    """Store the resolved audio URL and cover art URL on an audio_generation record."""
+    conn = _connect()
+    try:
+        cursor = conn.execute(
+            "UPDATE audio_generations SET audio_url = ?, cover_url = ? WHERE id = ?",
+            (audio_url, cover_url, ag_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def update_audio_generation_urls_by_job(
+    hotstep_job_id: str, audio_url: str, cover_url: str | None = None
+) -> bool:
+    """Store resolved URLs by HOT-Step job ID (convenience for queue store)."""
+    conn = _connect()
+    try:
+        cursor = conn.execute(
+            "UPDATE audio_generations SET audio_url = ?, cover_url = ? "
+            "WHERE hotstep_job_id = ?",
+            (audio_url, cover_url, hotstep_job_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
     finally:
         conn.close()
 

@@ -1058,6 +1058,20 @@ def register_lireek_routes(app: FastAPI) -> None:
         from acestep.api.lireek.lireek_db import get_recent_audio_generations
         return {"songs": get_recent_audio_generations(limit)}
 
+    @app.patch("/api/lireek/audio-generations/resolve")
+    async def resolve_audio_generation(request: Request):
+        """Store resolved audio URL and cover URL on an audio_generation record."""
+        from acestep.api.lireek.lireek_db import update_audio_generation_urls_by_job
+        body = await request.json()
+        job_id = body.get("job_id")
+        audio_url = body.get("audio_url")
+        cover_url = body.get("cover_url")
+        if not job_id or not audio_url:
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=400, content={"error": "job_id and audio_url required"})
+        updated = update_audio_generation_urls_by_job(job_id, audio_url, cover_url)
+        return {"updated": updated}
+
     # ── Song Management ───────────────────────────────────────────────────
 
     @app.delete("/api/lireek/lyrics-sets/{lyrics_set_id}/songs/{song_index}")

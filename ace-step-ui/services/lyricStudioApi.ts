@@ -318,6 +318,13 @@ export const lireekApi = {
   /** Recent songs across all artists (Lireek-only) */
   getRecentSongs: (limit = 30): Promise<{ songs: RecentSong[] }> =>
     api(`/api/lireek/recent-songs?limit=${limit}`),
+
+  /** Store resolved audio/cover URLs on an audio_generation record */
+  resolveAudioGeneration: (jobId: string, audioUrl: string, coverUrl?: string): Promise<{ updated: boolean }> =>
+    api('/api/lireek/audio-generations/resolve', {
+      method: 'PATCH',
+      body: { job_id: jobId, audio_url: audioUrl, cover_url: coverUrl || null },
+    }),
 };
 
 // ── Recent Song type ──────────────────────────────────────────────────────
@@ -325,6 +332,8 @@ export const lireekApi = {
 export interface RecentSong {
   ag_id: number;
   hotstep_job_id: string;
+  audio_url?: string;
+  cover_url?: string;
   ag_created_at: string;
   generation_id: number;
   song_title: string;

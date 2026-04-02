@@ -11,7 +11,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { lireekApi, Generation, AlbumPreset } from '../services/lyricStudioApi';
-import { generateApi, GenerationJob } from '../services/api';
+import { generateApi, songsApi, GenerationJob } from '../services/api';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,7 +348,22 @@ async function _executeItem(item: AudioQueueItem, token: string): Promise<void> 
       item.elapsed = Math.round((Date.now() - startTime) / 1000);
       _emit();
 
-      if (status.status === 'succeeded') return;
+      if (status.status === 'succeeded') {
+        // Resolve and persist audio URL + cover art to Lireek DB
+        const audioUrl = status.result?.audioUrls?.[0];
+        if (audioUrl && jobId) {
+          let coverUrl: string | undefined;
+          try {
+            const { songs: dbSongs } = await songsApi.getSongsByUrls([audioUrl], token);
+            const db: any = dbSongs[0];
+            coverUrl = db?.coverUrl || db?.cover_url || undefined;
+          } catch { /* non-fatal */ }
+          try {
+            await lireekApi.resolveAudioGeneration(jobId, audioUrl, coverUrl);
+          } catch { /* non-fatal */ }
+        }
+        return;
+      }
       if (status.status === 'failed') throw new Error(status.error || 'Generation failed');
     } catch (e) {
       // If getStatus fails with a network error, don't break the loop immediately
