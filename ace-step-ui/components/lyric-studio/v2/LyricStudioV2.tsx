@@ -16,11 +16,13 @@ import { SourceLyricsTab } from './SourceLyricsTab';
 import { ProfilesTab } from './ProfilesTab';
 import { WrittenSongsTab } from './WrittenSongsTab';
 import { RecordingsTab } from './RecordingsTab';
+import { RightSidebarPanel } from './RightSidebarPanel';
 import { useAudioGeneration } from './useAudioGeneration';
-import { AudioJobProgress, ActiveJob } from './AudioJobProgress';
+import { enqueueAudioGen, useAudioGenQueue } from '../../../stores/audioGenQueueStore';
 import { LiveVisualizer } from '../../LiveVisualizer';
 import { LyricsBar } from '../../LyricsBar';
 import { Song } from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
 import { QueuePanel } from '../QueuePanel';
 import { PromptEditor } from '../PromptEditor';
 import { useStreamingStore } from '../../../stores/streamingStore';
@@ -75,6 +77,7 @@ interface LyricStudioV2Props {
 }
 
 export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlaying = false, currentSong = null, currentTime = 0 }) => {
+  const { token } = useAuth();
   // ── Navigation ──
   const [nav, setNav] = useState<NavState>({
     level: 'artists',
@@ -121,7 +124,8 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
   const stream = useStreamingStore();
 
   // ── Audio generation jobs ──
-  const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
+  // Audio queue (replaces old activeJobs + AudioJobProgress)
+  const audioQueue = useAudioGenQueue();
 
   // ── Toast ──
   const [toast, setToast] = useState<string | null>(null);
@@ -489,24 +493,32 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
     }
   }, [nav.selectedAlbum, loadAlbumData]);
 
-  // ── Audio generation hook ──
-  const { generateAudio, sendToCreate } = useAudioGeneration({
+  // ── Audio generation hook (kept for sendToCreate) ──
+  const { sendToCreate } = useAudioGeneration({
     profiles,
     showToast,
-    onJobLinked: (genId, jobId) => {
-      const gen = generations.find(g => g.id === genId);
-      setActiveJobs(prev => [...prev, {
-        jobId,
-        title: gen?.title || 'Untitled',
-        generationId: genId,
-      }]);
-    },
   });
 
   const handleGenerateAudio = useCallback(async (gen: Generation) => {
-    await generateAudio(gen);
-    refreshAlbumData();
-  }, [generateAudio, refreshAlbumData]);
+    if (!token) { showToast('Not authenticated'); return; }
+    const profile = profiles.find(p => p.id === gen.profile_id);
+    if (!profile) { showToast('Profile not found'); return; }
+    await enqueueAudioGen(gen, {
+      artistId: nav.selectedArtist?.id || 0,
+      artistName: nav.selectedArtist?.name || 'Unknown',
+      profileId: profile.id,
+      lyricsSetId: profile.lyrics_set_id,
+    }, token);
+    showToast(`Queued: ${gen.title || 'Untitled'}`);
+  }, [token, profiles, nav.selectedArtist, showToast]);
+
+  // Refresh album data when audio queue completions change
+  useEffect(() => {
+    if (audioQueue.completionCounter > 0) {
+      refreshAlbumData();
+      setRecordingsRefreshKey(k => k + 1);
+    }
+  }, [audioQueue.completionCounter]);
 
   const handleSendToCreate = useCallback(async (gen: Generation) => {
     await sendToCreate(gen);
@@ -650,6 +662,15 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                 onSetImage={handleSetImage}
               />
             </div>
+            {/* Right sidebar */}
+            <div className="w-[28%] min-w-[260px] flex-shrink-0 border-l border-white/5 overflow-hidden">
+              <RightSidebarPanel
+                navLevel="artists"
+                onPlaySong={handlePlaySong}
+                showToast={showToast}
+                recordingsRefreshKey={recordingsRefreshKey}
+              />
+            </div>
           </div>
         )}
 
@@ -699,6 +720,15 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                 onRefreshImage={handleRefreshAlbumImage}
                 onSetImage={handleSetAlbumImage}
                 onCuratedProfile={() => setCuratedModalOpen(true)}
+              />
+            </div>
+            {/* Right sidebar */}
+            <div className="w-[28%] min-w-[260px] flex-shrink-0 border-l border-white/5 overflow-hidden">
+              <RightSidebarPanel
+                navLevel="albums"
+                onPlaySong={handlePlaySong}
+                showToast={showToast}
+                recordingsRefreshKey={recordingsRefreshKey}
               />
             </div>
           </div>
@@ -813,7 +843,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
               </ContentTabs>
               </div>
             </div>
-            {/* Right: Generated Songs — relative for visualizer bg */}
+            {/* Right: Sidebar Panel — relative for visualizer bg */}
             <div className="w-[30%] min-w-[280px] flex-shrink-0 border-l border-white/5 overflow-hidden flex flex-col relative">
               {/* Visualizer background */}
               {isPlaying && (
@@ -821,25 +851,16 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                   <LiveVisualizer isPlaying={true} className="w-full h-full" dimmed={true} showControls={false} instanceId="ls-recordings" />
                 </div>
               )}
-              <div className="relative z-[1] flex-shrink-0 px-4 py-3 border-b border-white/5 bg-zinc-950/30">
-                <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-                  <span>🎧</span> Generated Songs
-                  {songCount > 0 && (
-                    <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center bg-pink-500/20 text-pink-300">
-                      {songCount}
-                    </span>
-                  )}
-                </h3>
-              </div>
-              <div className="relative z-[1] flex-1 overflow-y-auto">
-                <RecordingsTab
+              <div className="relative z-[1] flex-1">
+                <RightSidebarPanel
+                  navLevel="album-detail"
                   generations={generations}
                   onPlaySong={handlePlaySong}
                   showToast={showToast}
-                  filterGenerationId={recordingsFilter}
-                  onClearFilter={() => setRecordingsFilter(null)}
+                  recordingsFilter={recordingsFilter}
+                  onClearRecordingsFilter={() => setRecordingsFilter(null)}
                   onSongCountChange={setSongCount}
-                  refreshKey={recordingsRefreshKey}
+                  recordingsRefreshKey={recordingsRefreshKey}
                   artistName={nav.selectedArtist?.name}
                 />
               </div>
@@ -932,17 +953,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
         />
       )}
 
-      {/* Audio generation progress bar */}
-      <AudioJobProgress
-        activeJobs={activeJobs}
-        onJobComplete={(jobId) => {
-          refreshAlbumData();
-          setRecordingsRefreshKey(k => k + 1);
-        }}
-        onJobRemove={(jobId) => {
-          setActiveJobs(prev => prev.filter(j => j.jobId !== jobId));
-        }}
-      />
+      {/* Audio generation progress is now handled inline by RightSidebarPanel */}
     </div>
   );
 };
