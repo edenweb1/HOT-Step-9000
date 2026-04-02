@@ -663,7 +663,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
               />
             </div>
             {/* Right sidebar */}
-            <div className="w-[28%] min-w-[260px] flex-shrink-0 border-l border-white/5 overflow-hidden">
+            <div className="w-[28%] min-w-[260px] h-full flex-shrink-0 border-l border-white/5 overflow-hidden">
               <RightSidebarPanel
                 navLevel="artists"
                 onPlaySong={handlePlaySong}
@@ -723,7 +723,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
               />
             </div>
             {/* Right sidebar */}
-            <div className="w-[28%] min-w-[260px] flex-shrink-0 border-l border-white/5 overflow-hidden">
+            <div className="w-[28%] min-w-[260px] h-full flex-shrink-0 border-l border-white/5 overflow-hidden">
               <RightSidebarPanel
                 navLevel="albums"
                 onPlaySong={handlePlaySong}
@@ -851,7 +851,7 @@ export const LyricStudioV2: React.FC<LyricStudioV2Props> = ({ onPlaySong, isPlay
                   <LiveVisualizer isPlaying={true} className="w-full h-full" dimmed={true} showControls={false} instanceId="ls-recordings" />
                 </div>
               )}
-              <div className="relative z-[1] flex-1">
+              <div className="relative z-[1] flex-1 min-h-0 overflow-hidden">
                 <RightSidebarPanel
                   navLevel="album-detail"
                   generations={generations}
