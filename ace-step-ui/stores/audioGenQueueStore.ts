@@ -317,8 +317,9 @@ async function _executeItem(item: AudioQueueItem, token: string): Promise<void> 
     params.masteringParams = { mode: 'matchering', reference_file: preset.matchering_reference_path };
   }
 
-  // 5) Mark source & submit
+  // 5) Mark source & artist for download naming
   params.source = 'lyric-studio';
+  params.artistName = item.artistName;
   item.status = 'generating';
   item.stage = 'Submitting to audio engine…';
   _emit();

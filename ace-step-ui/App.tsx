@@ -1751,9 +1751,13 @@ function AppContent() {
 
     try {
       const downloadSingleURL = (url: string, suffix: string) => {
+        const gp = songToDownload.generationParams || (songToDownload as any).generationParams;
+        const isLyricStudio = gp?.source === 'lyric-studio';
+        const artistPrefix = isLyricStudio && gp?.artistName ? `${gp.artistName} - ` : '';
+        const displayTitle = `${artistPrefix}${songToDownload.title || 'song'}`;
         const targetUrl = new URL('/api/songs/download', window.location.origin);
         targetUrl.searchParams.set('audioUrl', url);
-        targetUrl.searchParams.set('title', `${songToDownload.title || 'song'}${suffix}`);
+        targetUrl.searchParams.set('title', `${displayTitle}${suffix}`);
         targetUrl.searchParams.set('format', format);
         if (songToDownload.id) {
           targetUrl.searchParams.set('songId', songToDownload.id);
@@ -1770,7 +1774,7 @@ function AppContent() {
         const link = document.createElement('a');
         link.href = targetUrl.toString();
         const ext = format === 'opus' ? 'ogg' : format;
-        link.download = `${songToDownload.title || 'song'}${suffix}.${ext}`;
+        link.download = `${displayTitle}${suffix}.${ext}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1797,9 +1801,13 @@ function AppContent() {
     if (bulkDownloadSongs.length === 0) return;
 
     const downloadOneSong = (song: Song, url: string, suffix: string) => {
+      const gp = song.generationParams || (song as any).generationParams;
+      const isLyricStudio = gp?.source === 'lyric-studio';
+      const artistPrefix = isLyricStudio && gp?.artistName ? `${gp.artistName} - ` : '';
+      const displayTitle = `${artistPrefix}${song.title || 'song'}`;
       const targetUrl = new URL('/api/songs/download', window.location.origin);
       targetUrl.searchParams.set('audioUrl', url);
-      targetUrl.searchParams.set('title', `${song.title || 'song'}${suffix}`);
+      targetUrl.searchParams.set('title', `${displayTitle}${suffix}`);
       targetUrl.searchParams.set('format', format);
       if (song.id) targetUrl.searchParams.set('songId', song.id);
       if (format === 'mp3') {
@@ -1813,7 +1821,7 @@ function AppContent() {
       const link = document.createElement('a');
       link.href = targetUrl.toString();
       const ext = format === 'opus' ? 'ogg' : format;
-      link.download = `${song.title || 'song'}${suffix}.${ext}`;
+      link.download = `${displayTitle}${suffix}.${ext}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
