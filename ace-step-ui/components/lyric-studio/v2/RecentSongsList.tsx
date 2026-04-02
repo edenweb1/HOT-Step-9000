@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Loader2, Music } from 'lucide-react';
 import { lireekApi, RecentSong } from '../../../services/lyricStudioApi';
+import { songsApi } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { Song } from '../../../types';
 
@@ -63,7 +64,9 @@ export const RecentSongsList: React.FC<RecentSongsListProps> = ({ onPlaySong, re
     });
   }, [refreshKey, token]);
 
-  const handlePlay = useCallback((rs: RecentSong) => {
+  const handlePlay = useCallback(async (rs: RecentSong) => {
+    const audioUrl = rs.audio_url || '';
+    // Build base song
     const song: Song = {
       id: rs.hotstep_job_id,
       title: rs.song_title || 'Untitled',
@@ -73,10 +76,24 @@ export const RecentSongsList: React.FC<RecentSongsListProps> = ({ onPlaySong, re
       duration: String(rs.duration || 0),
       createdAt: new Date(rs.ag_created_at),
       tags: [],
-      audioUrl: rs.audio_url || '',
+      audioUrl,
     };
+
+    // Look up full DB record for generationParams (originalAudioUrl for M/O toggle)
+    if (audioUrl && token) {
+      try {
+        const { songs: dbSongs } = await songsApi.getSongsByUrls([audioUrl], token);
+        const db: any = dbSongs[0];
+        if (db) {
+          if (db.coverUrl || db.cover_url) song.coverUrl = db.coverUrl || db.cover_url;
+          if (db.generationParams) (song as any).generationParams = db.generationParams;
+          if (db.duration) song.duration = String(db.duration);
+        }
+      } catch { /* non-fatal — play with basic info */ }
+    }
+
     onPlaySong(song);
-  }, [onPlaySong]);
+  }, [onPlaySong, token]);
 
   if (loading && songs.length === 0) {
     return (
