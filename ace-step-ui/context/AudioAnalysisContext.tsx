@@ -1,7 +1,13 @@
 // AudioAnalysisContext.tsx — Shared audio analysis for live visualizers
 // Provides an AnalyserNode connected to the main player's HTMLAudioElement
+//
+// IMPORTANT: The AudioContext and MediaElementAudioSourceNode are stored
+// module-level so they survive React HMR / fast-refresh. You can only call
+// createMediaElementSource ONCE per element per AudioContext — if the
+// React tree unmounts and remounts (HMR), the refs would be lost but the
+// browser-level binding still exists, breaking reconnection.
 
-import React, { createContext, useContext, useRef, useCallback, useState } from 'react';
+import React, { createContext, useContext, useCallback, useState, useRef } from 'react';
 
 interface AudioAnalysisContextValue {
     /** Connect the analyser to an audio element. Call once on first play. */
@@ -23,80 +29,98 @@ const AudioAnalysisContext = createContext<AudioAnalysisContextValue>({
 
 export const useAudioAnalysis = () => useContext(AudioAnalysisContext);
 
+// ── Module-level singletons (survive HMR) ────────────────────────────────
+
+let _audioContext: AudioContext | null = null;
+let _sourceNode: MediaElementAudioSourceNode | null = null;
+let _analyserNode: AnalyserNode | null = null;
+let _connectedElement: HTMLAudioElement | null = null;
+
 interface AudioAnalysisProviderProps {
     children: React.ReactNode;
 }
 
 export const AudioAnalysisProvider: React.FC<AudioAnalysisProviderProps> = ({ children }) => {
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
-    const connectedElementRef = useRef<HTMLAudioElement | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
-    const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+    const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(_analyserNode);
+    const [isConnected, setIsConnected] = useState(_connectedElement !== null);
+    // Guard against multiple simultaneous connect() calls
+    const connectingRef = useRef(false);
 
-    // Resume a suspended AudioContext — call this from visualizer animation loops
-    // to recover from browser power-saving suspension during long idle periods.
     const resume = useCallback(() => {
-        const ctx = audioContextRef.current;
-        if (ctx && ctx.state === 'suspended') {
-            ctx.resume().catch(console.error);
+        if (_audioContext && _audioContext.state === 'suspended') {
+            _audioContext.resume().catch(console.error);
         }
     }, []);
 
     const connect = useCallback((audioElement: HTMLAudioElement) => {
-        // Already connected to this element — skip (use ref to avoid stale closure)
-        if (connectedElementRef.current === audioElement && analyserRef.current) {
-            // Still resume in case the context was suspended
-            if (audioContextRef.current?.state === 'suspended') {
-                audioContextRef.current.resume().catch(console.error);
+        // Already connected to this element — just resume if needed
+        if (_connectedElement === audioElement && _analyserNode) {
+            resume();
+            // Sync React state with module-level state (covers HMR remount)
+            if (!analyserNode) {
+                setAnalyserNode(_analyserNode);
+                setIsConnected(true);
             }
             return;
         }
 
-        // createMediaElementSource can only be called ONCE per element.
-        // If we already connected a different element, we'd need a new AudioContext.
-        // In practice, App.tsx creates one Audio element for the lifetime of the app.
+        // Guard against re-entrant calls
+        if (connectingRef.current) return;
+        connectingRef.current = true;
 
         try {
-            if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+            // Create AudioContext if needed (or reuse surviving one)
+            if (!_audioContext || _audioContext.state === 'closed') {
                 const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-                audioContextRef.current = new AudioContextClass();
+                _audioContext = new AudioContextClass();
             }
 
-            const audioCtx = audioContextRef.current;
-
             // Resume if suspended (browser autoplay policy)
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().catch(console.error);
+            if (_audioContext.state === 'suspended') {
+                _audioContext.resume().catch(console.error);
             }
 
             // Create analyser
-            const analyser = audioCtx.createAnalyser();
+            const analyser = _audioContext.createAnalyser();
             analyser.fftSize = 2048;
-            analyserRef.current = analyser;
-            setAnalyserNode(analyser);
+            _analyserNode = analyser;
 
             // Connect: element → source → analyser → destination
             // createMediaElementSource can only be called once per element
-            if (!sourceRef.current) {
-                const source = audioCtx.createMediaElementSource(audioElement);
-                sourceRef.current = source;
-                source.connect(analyser);
-                analyser.connect(audioCtx.destination);
+            if (!_sourceNode) {
+                try {
+                    const source = _audioContext.createMediaElementSource(audioElement);
+                    _sourceNode = source;
+                } catch (err) {
+                    // If createMediaElementSource fails (element already bound to
+                    // a different AudioContext that was garbage-collected), create
+                    // a brand-new AudioContext and try again.
+                    console.warn('AudioAnalysis: createMediaElementSource failed, creating new context', err);
+                    _audioContext = new AudioContext();
+                    const source = _audioContext.createMediaElementSource(audioElement);
+                    _sourceNode = source;
+                    // Re-create analyser in new context
+                    const newAnalyser = _audioContext.createAnalyser();
+                    newAnalyser.fftSize = 2048;
+                    _analyserNode = newAnalyser;
+                }
             } else {
-                // If source already exists (reconnecting), just rewire the analyser
-                sourceRef.current.disconnect();
-                sourceRef.current.connect(analyser);
-                analyser.connect(audioCtx.destination);
+                // Source already exists — just rewire through new analyser
+                _sourceNode.disconnect();
             }
 
-            connectedElementRef.current = audioElement;
+            _sourceNode.connect(_analyserNode);
+            _analyserNode.connect(_audioContext.destination);
+
+            _connectedElement = audioElement;
+            setAnalyserNode(_analyserNode);
             setIsConnected(true);
         } catch (err) {
             console.error('AudioAnalysis: Failed to connect', err);
+        } finally {
+            connectingRef.current = false;
         }
-    }, []);
+    }, [resume, analyserNode]);
 
     return (
         <AudioAnalysisContext.Provider value={{
