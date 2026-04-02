@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Loader2, Clock, Music } from 'lucide-react';
 import { lireekApi, RecentSong } from '../../../services/lyricStudioApi';
-import { generateApi } from '../../../services/api';
+import { generateApi, songsApi } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import { Song } from '../../../types';
 
@@ -72,6 +72,26 @@ export const RecentSongsList: React.FC<RecentSongsListProps> = ({ onPlaySong, re
             resolved.push({ recentSong: rs, audioUrl, coverUrl, duration });
           }
         } catch { /* skip failed resolution */ }
+      }
+
+      // Batch-fetch actual DB song records to get the real generated cover art
+      const allUrls = resolved.map(r => r.audioUrl).filter(Boolean);
+      if (allUrls.length > 0 && token) {
+        try {
+          const { songs: dbSongs } = await songsApi.getSongsByUrls(allUrls, token);
+          const dbMap = new Map(dbSongs.map(s => [s.audioUrl || s.audio_url, s]));
+          for (const item of resolved) {
+            const db: any = dbMap.get(item.audioUrl);
+            if (db?.coverUrl || db?.cover_url) {
+              item.coverUrl = db.coverUrl || db.cover_url;
+            }
+            if (db?.duration) {
+              item.duration = Number(db.duration) || item.duration;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[RecentSongsList] DB song lookup failed (non-fatal):', dbErr);
+        }
       }
 
       setSongs(resolved);
