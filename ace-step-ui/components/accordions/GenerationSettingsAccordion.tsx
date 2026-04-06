@@ -30,8 +30,8 @@ interface GenerationSettingsAccordionProps {
     // Inference
     inferenceSteps: number;
     onInferenceStepsChange: (val: number) => void;
-    inferMethod: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4' | 'jkass_quality' | 'jkass_fast';
-    onInferMethodChange: (val: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4' | 'jkass_quality' | 'jkass_fast') => void;
+    inferMethod: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'dpm3m' | 'rk4' | 'jkass_quality' | 'jkass_fast';
+    onInferMethodChange: (val: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'dpm3m' | 'rk4' | 'jkass_quality' | 'jkass_fast') => void;
     scheduler: string;
     onSchedulerChange: (val: string) => void;
     // Audio Format
@@ -280,12 +280,13 @@ export const GenerationSettingsAccordion: React.FC<GenerationSettingsAccordionPr
                                             <option value="ode" title={t('solverEulerDesc')}>{t('solverEuler')}</option>
                                             <option value="heun" title={t('solverHeunDesc')}>{t('solverHeun')}</option>
                                             <option value="dpm2m" title={t('solverDpm2mDesc')}>{t('solverDpm2m')}</option>
+                                            <option value="dpm3m" title={t('solverDpm3mDesc')}>{t('solverDpm3m')}</option>
                                             <option value="rk4" title={t('solverRk4Desc')}>{t('solverRk4')}</option>
                                             <option value="jkass_quality" title="JKASS Quality: Heun with derivative averaging (2 NFE)">JKASS Quality</option>
                                             <option value="jkass_fast" title="JKASS Fast: Euler with momentum, frequency damping, and temporal smoothing (1 NFE)">JKASS Fast</option>
                                         </select>
                                         <p className="text-[10px] leading-tight text-zinc-500 dark:text-zinc-500">
-                                            {({ ode: t('solverEulerDesc'), euler: t('solverEulerDesc'), heun: t('solverHeunDesc'), dpm2m: t('solverDpm2mDesc'), rk4: t('solverRk4Desc'), jkass_quality: 'Heun with derivative averaging — smooth, high-accuracy results (2× cost)', jkass_fast: 'Euler with beat stability, frequency damping & temporal smoothing' } as Record<string, string>)[props.inferMethod] || ''}
+                                            {({ ode: t('solverEulerDesc'), euler: t('solverEulerDesc'), heun: t('solverHeunDesc'), dpm2m: t('solverDpm2mDesc'), dpm3m: t('solverDpm3mDesc'), rk4: t('solverRk4Desc'), jkass_quality: 'Heun with derivative averaging — smooth, high-accuracy results (2× cost)', jkass_fast: 'Euler with beat stability, frequency damping & temporal smoothing' } as Record<string, string>)[props.inferMethod] || ''}
                                         </p>
                                     </div>
                                 </div>
@@ -357,7 +358,7 @@ export const GenerationSettingsAccordion: React.FC<GenerationSettingsAccordionPr
                                         }} className={selectClass}>
                                             <option value="linear" title={t('schedulerLinearDesc')}>Linear</option>
                                             <option value="ddim_uniform" title={t('schedulerDdimDesc')}>DDIM Uniform</option>
-                                            <option value="sgm_uniform" title={t('schedulerSgmDesc')}>SGM Uniform</option>
+                                            <option value="sgm_uniform" title={t('schedulerSgmDesc')}>SGM-Uniform (Karras)</option>
                                             <option value="bong_tangent" title={t('schedulerBongDesc')}>Bong Tangent</option>
                                             <option value="linear_quadratic" title={t('schedulerLinQuadDesc')}>Linear-Quadratic</option>
                                             <option value="composite" title={t('schedulerCompositeDesc')}>Composite (2-Stage)</option>

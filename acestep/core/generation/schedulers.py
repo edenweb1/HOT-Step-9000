@@ -233,18 +233,20 @@ SCHEDULERS = {
     "linear": linear_schedule,
     "ddim_uniform": ddim_uniform_schedule,
     "sgm_uniform": sgm_uniform_schedule,
+    "karras": sgm_uniform_schedule,      # alias — same Karras σ-ramp
     "bong_tangent": bong_tangent_schedule,
     "linear_quadratic": linear_quadratic_schedule,
     "composite": composite_schedule,
 }
 
 SCHEDULER_INFO = {
-    "linear":           {"name": "Linear",           "description": "Uniform spacing (default)"},
-    "ddim_uniform":     {"name": "DDIM Uniform",     "description": "Log-SNR uniform (S-shaped)"},
-    "sgm_uniform":      {"name": "SGM Uniform",      "description": "Karras σ-ramp (ρ=7)"},
-    "bong_tangent":     {"name": "Tangent",           "description": "Front-loaded (structural focus)"},
-    "linear_quadratic": {"name": "Linear-Quadratic",  "description": "Linear start, quadratic finish"},
-    "composite":        {"name": "Composite",         "description": "Two-stage: different schedulers for structure vs detail"},
+    "linear":           {"name": "Linear",               "description": "Uniform spacing (default)"},
+    "ddim_uniform":     {"name": "DDIM Uniform",         "description": "Log-SNR uniform (S-shaped)"},
+    "sgm_uniform":      {"name": "SGM-Uniform (Karras)", "description": "Karras σ-ramp (ρ=7). Front-loads structural steps."},
+    "karras":           {"name": "SGM-Uniform (Karras)", "description": "Karras σ-ramp (ρ=7). Alias for SGM Uniform."},
+    "bong_tangent":     {"name": "Tangent",              "description": "Front-loaded (structural focus)"},
+    "linear_quadratic": {"name": "Linear-Quadratic",     "description": "Linear start, quadratic finish"},
+    "composite":        {"name": "Composite",            "description": "Two-stage: different schedulers for structure vs detail"},
 }
 
 VALID_SCHEDULERS = set(SCHEDULERS.keys())

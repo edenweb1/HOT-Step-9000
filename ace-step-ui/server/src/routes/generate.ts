@@ -105,7 +105,7 @@ interface GenerateBody {
   seed?: number;
   thinking?: boolean;
   audioFormat?: 'mp3' | 'flac';
-  inferMethod?: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'rk4';
+  inferMethod?: 'ode' | 'euler' | 'heun' | 'dpm2m' | 'dpm3m' | 'rk4';
   scheduler?: 'linear' | 'ddim_uniform' | 'sgm_uniform' | 'bong_tangent' | 'linear_quadratic';
   shift?: number;
 

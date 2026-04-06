@@ -104,6 +104,58 @@ def dpm_pp_2m_step(
     return xt_next, state
 
 
+def dpm_pp_3m_step(
+    xt: Tensor, vt: Tensor, t_curr: float, t_prev: float,
+    state: State, model_fn: Optional[ModelFn] = None,
+) -> Tuple[Tensor, State]:
+    """DPM++ 3M (3rd order multistep). 1 NFE per step.
+
+    Uses the two most-recent velocity predictions for a 3rd-order
+    Adams-Bashforth correction with non-uniform step ratio handling.
+    Falls back to 2nd-order (AB2) on step 2 and Euler on step 1.
+
+    For uniform steps this reduces to the classical AB3 coefficients:
+        v_eff = (23/12)*v_n - (16/12)*v_{n-1} + (5/12)*v_{n-2}
+    """
+    dt = t_curr - t_prev
+    bsz = xt.shape[0]
+    dt_tensor = dt * torch.ones((bsz,), device=xt.device, dtype=xt.dtype).unsqueeze(-1).unsqueeze(-1)
+
+    prev_vt = state.get("prev_vt")
+    prev_prev_vt = state.get("prev_prev_vt")
+    prev_dt = state.get("prev_dt")
+    prev_prev_dt = state.get("prev_prev_dt")
+
+    if prev_vt is not None and prev_prev_vt is not None and prev_dt is not None and prev_prev_dt is not None:
+        # Third-order: full AB3 with non-uniform step ratios
+        r0 = prev_dt / dt          # ratio of last step to current
+        r1 = prev_prev_dt / dt     # ratio of step-before-last to current
+
+        # Finite differences (k-diffusion style)
+        d1_0 = (vt - prev_vt) / r0
+        d1_1 = (prev_vt - prev_prev_vt) / r1
+        d1 = d1_0 + (d1_0 - d1_1) * r0 / (r0 + r1)   # extrapolated 1st deriv
+        d2 = (d1_0 - d1_1) / (r0 + r1)                 # 2nd difference
+
+        # AB3 velocity correction: v + 1/2·d1 + 1/3·d2
+        vt_corrected = vt + 0.5 * d1 + (1.0 / 3.0) * d2
+    elif prev_vt is not None:
+        # Second-order: AB2 (same as DPM++ 2M)
+        vt_corrected = 1.5 * vt - 0.5 * prev_vt
+    else:
+        # First step: plain Euler
+        vt_corrected = vt
+
+    # Update state: shift history
+    state["prev_prev_vt"] = state.get("prev_vt")
+    state["prev_prev_dt"] = state.get("prev_dt")
+    state["prev_vt"] = vt.clone()
+    state["prev_dt"] = dt
+
+    xt_next = xt - vt_corrected * dt_tensor
+    return xt_next, state
+
+
 def rk4_step(
     xt: Tensor, vt: Tensor, t_curr: float, t_prev: float,
     state: State, model_fn: Optional[ModelFn] = None,
@@ -151,6 +203,7 @@ SOLVERS = {
     "ode": euler_step,       # alias for backward compatibility
     "heun": heun_step,
     "dpm2m": dpm_pp_2m_step,
+    "dpm3m": dpm_pp_3m_step,
     "rk4": rk4_step,
     "jkass_quality": jkass_quality_step,
     "jkass_fast": jkass_fast_step,
@@ -162,6 +215,7 @@ SOLVER_INFO = {
     "ode":   {"name": "Euler (ODE)", "order": 1, "nfe": 1, "needs_model_fn": False},
     "heun":  {"name": "Heun",        "order": 2, "nfe": 2, "needs_model_fn": True},
     "dpm2m": {"name": "DPM++ 2M",    "order": 2, "nfe": 1, "needs_model_fn": False},
+    "dpm3m": {"name": "DPM++ 3M",    "order": 3, "nfe": 1, "needs_model_fn": False},
     "rk4":   {"name": "RK4",         "order": 4, "nfe": 4, "needs_model_fn": True},
     "jkass_quality": {"name": "JKASS Quality", "order": 2, "nfe": 2, "needs_model_fn": True},
     "jkass_fast":    {"name": "JKASS Fast",    "order": 1, "nfe": 1, "needs_model_fn": False},
