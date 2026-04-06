@@ -482,9 +482,14 @@ def load_lora_slot(self, lora_path: str, slot: Optional[int] = None) -> str:
         # Backup base decoder on first load
         if self._base_decoder is None:
             logger.info("Backing up base decoder state_dict to CPU")
-            self._base_decoder = {
-                k: v.detach().cpu().clone() for k, v in self.model.decoder.state_dict().items()
-            }
+            backup = {}
+            for k, v in self.model.decoder.state_dict().items():
+                # Dequantize torchao quantized tensors so merge math works
+                if hasattr(v, 'dequantize'):
+                    backup[k] = v.dequantize().detach().cpu().clone()
+                else:
+                    backup[k] = v.detach().cpu().clone()
+            self._base_decoder = backup
             backup_mb = sum(v.numel() * v.element_size() for v in self._base_decoder.values()) / (1024**2)
             logger.info(f"Base decoder backed up ({backup_mb:.1f}MB)")
 

@@ -507,7 +507,14 @@ def add_lora(self, lora_path: str, adapter_name: str | None = None) -> str:
                     state_dict = decoder.state_dict()
                     if not state_dict:
                         raise ValueError("state_dict is empty - cannot backup decoder")
-                    self._base_decoder = {k: v.detach().cpu().clone() for k, v in state_dict.items()}
+                    # Dequantize torchao quantized tensors so LoRA merge math works
+                    backup = {}
+                    for k, v in state_dict.items():
+                        if hasattr(v, 'dequantize'):
+                            backup[k] = v.dequantize().detach().cpu().clone()
+                        else:
+                            backup[k] = v.detach().cpu().clone()
+                    self._base_decoder = backup
                 except Exception as e:
                     logger.error(f"Failed to create state_dict backup: {e}")
                     raise
