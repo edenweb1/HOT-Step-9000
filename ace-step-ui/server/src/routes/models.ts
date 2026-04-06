@@ -358,7 +358,7 @@ router.get('/convert-gguf', async (req: any, res: Response) => {
     console.log('[GGUF Convert] Spawning:', pythonExe, args.join(' '));
     const proc = spawn(pythonExe, args, {
         cwd: PROJECT_ROOT,
-        env: { ...process.env, PYTHONUNBUFFERED: '1', ACESTEP_PROJECT_ROOT: PROJECT_ROOT },
+        env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', ACESTEP_PROJECT_ROOT: PROJECT_ROOT },
     });
     console.log('[GGUF Convert] Process spawned, PID:', proc.pid);
 

@@ -1,8 +1,8 @@
 """Local GGUF conversion from safetensors models.
 
 Orchestrates the full pipeline:
-- Direct: safetensors → Q8_0 or BF16 via convert_hf_to_gguf.py
-- Two-step: safetensors → BF16 → Q4_K_M/Q5_K_M/Q6_K via llama-quantize
+- Direct: safetensors -> Q8_0 or BF16 via convert_hf_to_gguf.py
+- Two-step: safetensors -> BF16 -> Q4_K_M/Q5_K_M/Q6_K via llama-quantize
 
 The llama-quantize binary is auto-downloaded from llama.cpp GitHub releases
 on first use.
@@ -235,7 +235,7 @@ def convert_model(
     # Direct conversion path (Q8_0, BF16, F16)
     if quant_upper in ("Q8_0", "BF16", "F16"):
         outtype = quant_upper.lower()  # convert_hf_to_gguf uses lowercase
-        log(f"Converting {model_name} → {quant_upper} (direct)...")
+        log(f"Converting {model_name} -> {quant_upper} (direct)...")
 
         cmd = [
             python_exe,
@@ -251,7 +251,7 @@ def convert_model(
             log(f"✅ Conversion complete: {target_file.name} ({size_gb:.1f} GB)")
             return True, str(target_file)
         else:
-            return False, f"❌ Conversion failed for {model_name} → {quant_upper}"
+            return False, f"❌ Conversion failed for {model_name} -> {quant_upper}"
 
     # Two-step path (Q4_K_M, Q5_K_M, Q6_K): need BF16 intermediate + llama-quantize
     elif quant_upper in ("Q4_K_M", "Q5_K_M", "Q6_K"):
@@ -270,7 +270,7 @@ def convert_model(
         if bf16_file.exists() and bf16_file.stat().st_size > 0:
             log(f"Using existing BF16 intermediate: {bf16_file.name}")
         else:
-            log(f"Step 1/2: Converting safetensors → BF16 intermediate...")
+            log(f"Step 1/2: Converting safetensors -> BF16 intermediate...")
             bf16_is_temp = True
 
             cmd = [
@@ -288,8 +288,8 @@ def convert_model(
             size_gb = bf16_file.stat().st_size / (1024 ** 3)
             log(f"BF16 intermediate ready ({size_gb:.1f} GB)")
 
-        # Step 2: Quantize BF16 → target
-        log(f"Step 2/2: Quantizing BF16 → {quant_upper}...")
+        # Step 2: Quantize BF16 -> target
+        log(f"Step 2/2: Quantizing BF16 -> {quant_upper}...")
 
         cmd = [
             quantize_exe,
@@ -313,7 +313,7 @@ def convert_model(
             log(f"✅ Conversion complete: {target_file.name} ({size_gb:.1f} GB)")
             return True, str(target_file)
         else:
-            return False, f"❌ Quantization failed for {model_name} → {quant_upper}"
+            return False, f"❌ Quantization failed for {model_name} -> {quant_upper}"
 
     else:
         return False, f"❌ Unsupported quantization type: {target_quant}"
