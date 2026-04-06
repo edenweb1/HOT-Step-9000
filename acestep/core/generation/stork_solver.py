@@ -122,17 +122,25 @@ def stork2_step(
         return xt_next, state
 
     # --- Main STORK2 step ---
-    dv, d2v, deriv_order = _compute_derivatives(vt, state, device, dtype)
+    # Upcast to float32 for the sub-stepping loop.  The RKG recurrence
+    # involves s recursive polynomial evaluations; in bfloat16 (7-bit
+    # mantissa) the accumulated rounding error is ~s × 0.008 which is
+    # catastrophic at s≥50.  float32 (23-bit) handles s=148 cleanly.
+    orig_dtype = xt.dtype
+    xt_f = xt.float()
+    vt_f = vt.float()
+
+    dv, d2v, deriv_order = _compute_derivatives(vt_f, state, device, torch.float32)
 
     t = t_curr
     t_next = t_prev
 
-    # RKG2 sub-stepping
-    Y_j_2 = xt.clone()
-    Y_j_1 = xt.clone()
-    Y_j = xt.clone()
+    # RKG2 sub-stepping (all in float32)
+    Y_j_2 = xt_f.clone()
+    Y_j_1 = xt_f.clone()
+    Y_j = xt_f.clone()
 
-    dt_tensor = (t - t_next) * torch.ones_like(xt)
+    dt_tensor = (t - t_next) * torch.ones_like(xt_f)
 
     for j in range(1, s + 1):
         if j > 1:
@@ -143,23 +151,23 @@ def stork2_step(
 
         if j == 1:
             mu_tilde = 6.0 / ((s + 4) * (s - 1))
-            Y_j = Y_j_1 - dt_tensor * mu_tilde * vt
+            Y_j = Y_j_1 - dt_tensor * mu_tilde * vt_f
         else:
             mu = (2 * j + 1) * _b_coeff(j) / (j * _b_coeff(j - 1))
             nu = -(j + 1) * _b_coeff(j) / (j * _b_coeff(j - 2))
             mu_tilde_j = mu * 6.0 / ((s + 4) * (s - 1))
             gamma_tilde = -mu_tilde_j * (1.0 - j * (j + 1) * _b_coeff(j - 1) / 2.0)
 
-            diff = -fraction * (t - t_next) * torch.ones_like(xt)
-            velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
-            Y_j = (mu * Y_j_1 + nu * Y_j_2 + (1.0 - mu - nu) * xt
+            diff = -fraction * (t - t_next) * torch.ones_like(xt_f)
+            velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
+            Y_j = (mu * Y_j_1 + nu * Y_j_2 + (1.0 - mu - nu) * xt_f
                     - dt_tensor * mu_tilde_j * velocity
-                    - dt_tensor * gamma_tilde * vt)
+                    - dt_tensor * gamma_tilde * vt_f)
 
         Y_j_2 = Y_j_1
         Y_j_1 = Y_j
 
-    xt_next = Y_j
+    xt_next = Y_j.to(orig_dtype)
 
     # Update state
     state["step_index"] = step_idx + 1
@@ -235,7 +243,12 @@ def stork4_step(
         return xt_next, state
 
     # --- Main STORK4 step ---
-    dv, d2v, deriv_order = _compute_derivatives(vt, state, device, dtype)
+    # Upcast to float32 — same bfloat16 precision issue as STORK2.
+    orig_dtype = xt.dtype
+    xt_f = xt.float()
+    vt_f = vt.float()
+
+    dv, d2v, deriv_order = _compute_derivatives(vt_f, state, device, torch.float32)
 
     t = t_curr
     t_next = t_prev
@@ -246,29 +259,29 @@ def stork4_step(
     fpb = FPB
     recf = RECF
 
-    # Part 1: ROCK4 sub-stepping
-    Y_j_2 = xt.clone()
-    Y_j_1 = xt.clone()
-    Y_j = xt.clone()
+    # Part 1: ROCK4 sub-stepping (all in float32)
+    Y_j_2 = xt_f.clone()
+    Y_j_1 = xt_f.clone()
+    Y_j = xt_f.clone()
 
-    t_start = t * torch.ones_like(xt)
+    t_start = t * torch.ones_like(xt_f)
     ci1 = t_start.clone()
     ci2 = t_start.clone()
     ci3 = t_start.clone()
 
     for j in range(1, mdeg + 1):
         if j == 1:
-            temp1 = -(t - t_next) * recf[mr] * torch.ones_like(xt)
+            temp1 = -(t - t_next) * recf[mr] * torch.ones_like(xt_f)
             ci1 = t_start + temp1
             ci2 = ci1.clone()
-            Y_j_1 = xt + temp1 * vt
+            Y_j_1 = xt_f + temp1 * vt_f
         else:
             diff = ci1 - t_start
-            velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
+            velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
 
-            temp1 = -(t - t_next) * recf[mr + 2 * (j - 2) + 1] * torch.ones_like(xt)
-            temp3 = -recf[mr + 2 * (j - 2) + 2] * torch.ones_like(xt)
-            temp2 = torch.ones_like(xt) - temp3
+            temp1 = -(t - t_next) * recf[mr + 2 * (j - 2) + 1] * torch.ones_like(xt_f)
+            temp3 = -recf[mr + 2 * (j - 2) + 2] * torch.ones_like(xt_f)
+            temp2 = torch.ones_like(xt_f) - temp3
 
             ci1 = temp1 + temp2 * ci2 + temp3 * ci3
             Y_j = temp1 * velocity + temp2 * Y_j_1 + temp3 * Y_j_2
@@ -280,41 +293,41 @@ def stork4_step(
 
     # Part 2: Finishing four-step procedure
     # Step 1
-    temp1 = -(t - t_next) * fpa[mz, 0] * torch.ones_like(xt)
+    temp1 = -(t - t_next) * fpa[mz, 0] * torch.ones_like(xt_f)
     diff = ci1 - t_start
-    velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
+    velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
     F1 = velocity
     Y_j_3 = Y_j + temp1 * F1
 
     # Step 2
     ci2_f = ci1 + temp1
-    temp1_2 = -(t - t_next) * fpa[mz, 1] * torch.ones_like(xt)
-    temp2_2 = -(t - t_next) * fpa[mz, 2] * torch.ones_like(xt)
+    temp1_2 = -(t - t_next) * fpa[mz, 1] * torch.ones_like(xt_f)
+    temp2_2 = -(t - t_next) * fpa[mz, 2] * torch.ones_like(xt_f)
     diff = ci2_f - t_start
-    velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
+    velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
     F2 = velocity
     Y_j_4 = Y_j + temp1_2 * F1 + temp2_2 * F2
 
     # Step 3
     ci2_f = ci1 + temp1_2 + temp2_2
-    temp1_3 = -(t - t_next) * fpa[mz, 3] * torch.ones_like(xt)
-    temp2_3 = -(t - t_next) * fpa[mz, 4] * torch.ones_like(xt)
-    temp3_3 = -(t - t_next) * fpa[mz, 5] * torch.ones_like(xt)
+    temp1_3 = -(t - t_next) * fpa[mz, 3] * torch.ones_like(xt_f)
+    temp2_3 = -(t - t_next) * fpa[mz, 4] * torch.ones_like(xt_f)
+    temp3_3 = -(t - t_next) * fpa[mz, 5] * torch.ones_like(xt_f)
     diff = ci2_f - t_start
-    velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
+    velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
     F3 = velocity
 
     # Step 4 (final)
     ci2_f = ci1 + temp1_3 + temp2_3 + temp3_3
-    temp1_4 = -(t - t_next) * fpb[mz, 0] * torch.ones_like(xt)
-    temp2_4 = -(t - t_next) * fpb[mz, 1] * torch.ones_like(xt)
-    temp3_4 = -(t - t_next) * fpb[mz, 2] * torch.ones_like(xt)
-    temp4_4 = -(t - t_next) * fpb[mz, 3] * torch.ones_like(xt)
+    temp1_4 = -(t - t_next) * fpb[mz, 0] * torch.ones_like(xt_f)
+    temp2_4 = -(t - t_next) * fpb[mz, 1] * torch.ones_like(xt_f)
+    temp3_4 = -(t - t_next) * fpb[mz, 2] * torch.ones_like(xt_f)
+    temp4_4 = -(t - t_next) * fpb[mz, 3] * torch.ones_like(xt_f)
     diff = ci2_f - t_start
-    velocity = _taylor_approx(deriv_order, diff, vt, dv, d2v)
+    velocity = _taylor_approx(deriv_order, diff, vt_f, dv, d2v)
     F4 = velocity
 
-    xt_next = Y_j + temp1_4 * F1 + temp2_4 * F2 + temp3_4 * F3 + temp4_4 * F4
+    xt_next = (Y_j + temp1_4 * F1 + temp2_4 * F2 + temp3_4 * F3 + temp4_4 * F4).to(orig_dtype)
 
     # Update state
     state["step_index"] = step_idx + 1
