@@ -127,8 +127,8 @@ router.post('/lm/backend', authMiddleware, async (req: AuthenticatedRequest, res
 // No auth required — only called during startup before app is fully loaded
 router.post('/update-env', async (req: any, res: Response) => {
     try {
-        const { ACESTEP_CONFIG_PATH, ACESTEP_LM_MODEL_PATH, ACESTEP_LM_BACKEND, ACESTEP_REDMOND_MODE, ACESTEP_REDMOND_SCALE, ACESTEP_NO_INIT, ACESTEP_QUANTIZATION } = req.body;
-        if (!ACESTEP_CONFIG_PATH && !ACESTEP_LM_MODEL_PATH && !ACESTEP_LM_BACKEND && ACESTEP_REDMOND_MODE === undefined && !ACESTEP_REDMOND_SCALE && ACESTEP_NO_INIT === undefined && ACESTEP_QUANTIZATION === undefined) {
+        const { ACESTEP_CONFIG_PATH, ACESTEP_LM_MODEL_PATH, ACESTEP_LM_BACKEND, ACESTEP_REDMOND_MODE, ACESTEP_REDMOND_SCALE, ACESTEP_NO_INIT, ACESTEP_QUANTIZATION, ACESTEP_LM_GPU_LAYERS } = req.body;
+        if (!ACESTEP_CONFIG_PATH && !ACESTEP_LM_MODEL_PATH && !ACESTEP_LM_BACKEND && ACESTEP_REDMOND_MODE === undefined && !ACESTEP_REDMOND_SCALE && ACESTEP_NO_INIT === undefined && ACESTEP_QUANTIZATION === undefined && ACESTEP_LM_GPU_LAYERS === undefined) {
             res.status(400).json({ error: 'At least one setting required' });
             return;
         }
@@ -211,8 +211,20 @@ router.post('/update-env', async (req: any, res: Response) => {
             }
         }
 
+        // LM GPU Layers setting (llama-cpp backend)
+        if (ACESTEP_LM_GPU_LAYERS !== undefined) {
+            if (/^ACESTEP_LM_GPU_LAYERS=.*/m.test(envContent)) {
+                envContent = envContent.replace(
+                    /^ACESTEP_LM_GPU_LAYERS=.*/m,
+                    `ACESTEP_LM_GPU_LAYERS=${ACESTEP_LM_GPU_LAYERS}`
+                );
+            } else {
+                envContent = envContent.trimEnd() + `\nACESTEP_LM_GPU_LAYERS=${ACESTEP_LM_GPU_LAYERS}\n`;
+            }
+        }
+
         fs.writeFileSync(envPath, envContent, 'utf-8');
-        console.log(`[Models] .env updated: CONFIG_PATH=${ACESTEP_CONFIG_PATH || '(unchanged)'}, LM_MODEL_PATH=${ACESTEP_LM_MODEL_PATH || '(unchanged)'}, LM_BACKEND=${ACESTEP_LM_BACKEND || '(unchanged)'}, REDMOND_MODE=${ACESTEP_REDMOND_MODE ?? '(unchanged)'}, NO_INIT=${ACESTEP_NO_INIT ?? '(unchanged)'}, QUANTIZATION=${ACESTEP_QUANTIZATION ?? '(unchanged)'}`);
+        console.log(`[Models] .env updated: CONFIG_PATH=${ACESTEP_CONFIG_PATH || '(unchanged)'}, LM_MODEL_PATH=${ACESTEP_LM_MODEL_PATH || '(unchanged)'}, LM_BACKEND=${ACESTEP_LM_BACKEND || '(unchanged)'}, REDMOND_MODE=${ACESTEP_REDMOND_MODE ?? '(unchanged)'}, NO_INIT=${ACESTEP_NO_INIT ?? '(unchanged)'}, QUANTIZATION=${ACESTEP_QUANTIZATION ?? '(unchanged)'}, LM_GPU_LAYERS=${ACESTEP_LM_GPU_LAYERS ?? '(unchanged)'}`);
         res.json({ success: true });
     } catch (error: any) {
         console.error('[Models] Failed to update .env:', error);

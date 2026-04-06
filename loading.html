@@ -394,7 +394,13 @@
                     <option value="vllm">VLLM-Nano (faster)</option>
                     <option value="custom-vllm">Custom VLLM (PR 858)</option>
                     <option value="pt">PyTorch (native)</option>
+                    <option value="llama-cpp">llama-cpp (GGUF — lower VRAM)</option>
                 </select>
+            </div>
+            <div class="model-row" id="gpuLayersRow" style="display:none">
+                <label>GPU Layers <span id="gpuLayersValue" style="color:#8ae;font-weight:600">-1 (all)</span></label>
+                <input type="range" id="gpuLayersSlider" min="-1" max="64" value="-1" style="width:100%;accent-color:#8ae">
+                <div style="font-size:.62rem;color:#666;margin-top:.2rem">-1 = all layers on GPU. Lower values offload more to CPU, reducing VRAM usage.</div>
             </div>
             <div class="model-row">
                 <label>DiT Quantization</label>
@@ -491,6 +497,7 @@
         if (typeof REDMOND_AVAILABLE === 'undefined') var REDMOND_AVAILABLE = 'false';
         if (typeof CURRENT_NO_INIT === 'undefined') var CURRENT_NO_INIT = 'false';
         if (typeof CURRENT_QUANTIZATION === 'undefined') var CURRENT_QUANTIZATION = 'auto';
+        if (typeof CURRENT_LM_GPU_LAYERS === 'undefined') var CURRENT_LM_GPU_LAYERS = '-1';
 
         document.getElementById('frontend-port').textContent = `(port ${VITE_PORT})`;
 
@@ -527,6 +534,22 @@
         // Set Quantization dropdown to saved value
         const quantizationSelect = document.getElementById('quantizationSelect');
         quantizationSelect.value = CURRENT_QUANTIZATION;
+
+        // Set GPU Layers slider + show/hide based on backend
+        const gpuLayersSlider = document.getElementById('gpuLayersSlider');
+        const gpuLayersRow = document.getElementById('gpuLayersRow');
+        const gpuLayersValue = document.getElementById('gpuLayersValue');
+        gpuLayersSlider.value = CURRENT_LM_GPU_LAYERS;
+        gpuLayersValue.textContent = CURRENT_LM_GPU_LAYERS === '-1' ? '-1 (all)' : CURRENT_LM_GPU_LAYERS;
+        gpuLayersRow.style.display = CURRENT_LM_BACKEND === 'llama-cpp' ? '' : 'none';
+
+        // Toggle GPU layers visibility when backend changes
+        lmBackendSelect.addEventListener('change', () => {
+            gpuLayersRow.style.display = lmBackendSelect.value === 'llama-cpp' ? '' : 'none';
+        });
+        gpuLayersSlider.addEventListener('input', () => {
+            gpuLayersValue.textContent = gpuLayersSlider.value === '-1' ? '-1 (all)' : gpuLayersSlider.value;
+        });
 
         // Set Redmond Mode toggle from saved config
         const redmondToggle = document.getElementById('redmondToggle');
@@ -571,6 +594,7 @@
                             ACESTEP_REDMOND_MODE: redmondToggle.checked ? 'true' : 'false',
                             ACESTEP_NO_INIT: noInitToggle.checked ? 'true' : 'false',
                             ACESTEP_QUANTIZATION: quantizationSelect.value,
+                            ACESTEP_LM_GPU_LAYERS: gpuLayersSlider.value,
                         }),
                     });
                     if (resp.ok) return true;
