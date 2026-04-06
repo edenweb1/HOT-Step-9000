@@ -291,3 +291,5 @@ output/
 settingstouse.json
 test_roundtrip.py
 tmp_*.py
+# Auto-downloaded llama-quantize binaries
+acestep/tools/bin/
