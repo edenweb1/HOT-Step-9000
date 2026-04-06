@@ -126,16 +126,25 @@ def dpm_pp_3m_step(
     prev_dt = state.get("prev_dt")
     prev_prev_dt = state.get("prev_prev_dt")
 
-    if prev_vt is not None and prev_prev_vt is not None and prev_dt is not None and prev_prev_dt is not None:
+    eps = 1e-10  # guard against division by zero
+
+    if (prev_vt is not None and prev_prev_vt is not None
+            and prev_dt is not None and prev_prev_dt is not None
+            and abs(dt) > eps):
         # Third-order: full AB3 with non-uniform step ratios
         r0 = prev_dt / dt          # ratio of last step to current
         r1 = prev_prev_dt / dt     # ratio of step-before-last to current
 
-        # Finite differences (k-diffusion style)
-        d1_0 = (vt - prev_vt) / r0
-        d1_1 = (prev_vt - prev_prev_vt) / r1
-        d1 = d1_0 + (d1_0 - d1_1) * r0 / (r0 + r1)   # extrapolated 1st deriv
-        d2 = (d1_0 - d1_1) / (r0 + r1)                 # 2nd difference
+        # Finite differences (k-diffusion style) — guard denominators
+        d1_0 = (vt - prev_vt) / max(abs(r0), eps) * (1.0 if r0 >= 0 else -1.0)
+        d1_1 = (prev_vt - prev_prev_vt) / max(abs(r1), eps) * (1.0 if r1 >= 0 else -1.0)
+        denom = r0 + r1
+        if abs(denom) > eps:
+            d1 = d1_0 + (d1_0 - d1_1) * r0 / denom   # extrapolated 1st deriv
+            d2 = (d1_0 - d1_1) / denom                 # 2nd difference
+        else:
+            d1 = d1_0
+            d2 = 0.0
 
         # AB3 velocity correction: v + 1/2·d1 + 1/3·d2
         vt_corrected = vt + 0.5 * d1 + (1.0 / 3.0) * d2
