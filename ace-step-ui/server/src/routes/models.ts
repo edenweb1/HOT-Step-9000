@@ -375,6 +375,7 @@ router.post('/convert-gguf', async (req: any, res: Response) => {
     });
 
     proc.on('close', (code: number | null) => {
+        console.log(`[GGUF Convert] Process closed with code: ${code}`);
         if (code === 0) {
             sendEvent('✅ All conversions completed successfully', 'done');
         } else {
@@ -384,12 +385,14 @@ router.post('/convert-gguf', async (req: any, res: Response) => {
     });
 
     proc.on('error', (err: Error) => {
+        console.log(`[GGUF Convert] Process error: ${err.message}`);
         sendEvent(`❌ Failed to start conversion: ${err.message}`, 'error');
         res.end();
     });
 
     // Handle client disconnect
     req.on('close', () => {
+        console.log(`[GGUF Convert] Client disconnected, proc.killed=${proc.killed}`);
         if (!proc.killed) {
             proc.kill('SIGTERM');
         }
