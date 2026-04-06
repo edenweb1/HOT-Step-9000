@@ -420,10 +420,9 @@ def add_lora(self, lora_path: str, adapter_name: str | None = None) -> str:
         return "❌ Model not initialized. Please initialize service first."
 
     if self.quantization is not None:
-        return (
-            "❌ LoRA loading is not supported on quantized models. "
-            f"Current quantization: {self.quantization}. "
-            "Please re-initialize the service with quantization disabled, then try loading the LoRA adapter again."
+        logger.warning(
+            f"⚠️ Loading LoRA on quantized model ({self.quantization}) — "
+            "this may fail or produce unexpected results. INT8 usually works, INT4 is risky."
         )
 
     # Block adapter loading on XL (4B) models — 2B adapters are incompatible

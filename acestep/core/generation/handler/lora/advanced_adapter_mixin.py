@@ -463,10 +463,9 @@ def load_lora_slot(self, lora_path: str, slot: Optional[int] = None) -> str:
         return "❌ Model not initialized. Please initialize service first."
 
     if self.quantization is not None:
-        return (
-            f"❌ LoRA loading is not supported on quantized models. "
-            f"Current quantization: {self.quantization}. "
-            "Please re-initialize with quantization disabled."
+        logger.warning(
+            f"⚠️ Loading LoRA on quantized model ({self.quantization}) — "
+            "this may fail or produce unexpected results. INT8 usually works, INT4 is risky."
         )
 
     if not lora_path or not lora_path.strip():
