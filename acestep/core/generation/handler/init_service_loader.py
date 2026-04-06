@@ -113,7 +113,7 @@ class InitServiceLoaderMixin:
                     quant_config = Int8WeightOnlyConfig()
                 elif quantization == "int4_weight_only":
                     from torchao.quantization import Int4WeightOnlyConfig
-                    quant_config = Int4WeightOnlyConfig(group_size=128)
+                    quant_config = Int4WeightOnlyConfig(group_size=128, version=1)
                 elif quantization == "fp8_weight_only":
                     from torchao.quantization import Float8WeightOnlyConfig
                     quant_config = Float8WeightOnlyConfig()
