@@ -58,6 +58,81 @@ HOT-Step 9000 sits on top of the original ACE-Step backend but introduces a mass
 
 ---
 
+## VRAM Management
+
+HOT-Step 9000 includes built-in tools to reduce GPU memory usage, making it accessible on hardware with as little as **16GB VRAM** — without sacrificing the full 4B parameter language model or advanced features like LoRA adapters.
+
+### DiT Quantization
+
+The DiT (Diffusion Transformer) is the largest model component. HOT-Step supports on-demand weight quantization via [torchao](https://github.com/pytorch/ao) to dramatically reduce its VRAM footprint:
+
+| Setting | VRAM Saved | Quality Impact | LoRA Compatible |
+|---------|-----------|----------------|-----------------|
+| `none` (BF16) | Baseline | None | ✅ Full support |
+| `int8_weight_only` | ~2.5 GB | Negligible | ✅ Full support |
+| `int4_weight_only` | ~6.5 GB | Minor; experimental | ✅ Works via dequantized merge |
+
+**Configuration:** Set `ACESTEP_QUANTIZATION` in your `.env` file:
+
+```env
+# Options: auto, none, int8_weight_only, int4_weight_only
+ACESTEP_QUANTIZATION=auto
+```
+
+When set to `auto`, HOT-Step detects your GPU VRAM and applies the appropriate quantization level automatically. Quantization is applied at model load time — no model re-download required.
+
+> **LoRA on quantized models:** Adapters work on both INT8 and INT4 quantized DiTs. Internally, base weights are dequantized for the merge computation, so adapter-modified layers run in BF16. VRAM increases slightly when LoRA is active, but remains well below the unquantized baseline.
+
+### Local GGUF Conversion for Language Models
+
+The language models (LMs) that generate structured music tokens can be converted to [GGUF format](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) for use with `llama-cpp-python`. GGUF models use significantly less VRAM than the default vLLM/PyTorch backends and support partial CPU offloading.
+
+**How to convert:**
+
+The loading screen includes a built-in conversion panel. Select your model and desired quantization level, and click **Convert to GGUF**. Conversion progress is streamed live to the UI.
+
+Alternatively, use the CLI:
+
+```bash
+python -m acestep.tools.gguf_converter acestep-5Hz-lm-4B --quant Q4_K_M
+```
+
+| Quant Level | LM VRAM | Quality | Speed |
+|-------------|---------|---------|-------|
+| BF16 | ~8 GB | Lossless | Fast |
+| Q8_0 | ~4 GB | Near-lossless | Fast |
+| Q4_K_M | ~2.5 GB | Good | Moderate |
+| Q5_K_M | ~3 GB | Very good | Moderate |
+| Q6_K | ~3.5 GB | Excellent | Moderate |
+
+**What happens during conversion:**
+1. For BF16/Q8_0: Direct conversion via `convert_hf_to_gguf.py` from [llama.cpp](https://github.com/ggml-org/llama.cpp)
+2. For Q4/Q5/Q6: Two-step process — convert to BF16 intermediate, then quantize with `llama-quantize`
+3. The `llama-quantize` binary and required DLLs are auto-downloaded from the llama.cpp GitHub releases on first use
+4. Converted files are saved alongside the original model in the `checkpoints/` directory
+
+**GPU offloading:** Configure how many transformer layers run on GPU via `ACESTEP_N_GPU_LAYERS` in `.env`:
+
+```env
+# -1 = all on GPU (fastest), 0 = all on CPU (no VRAM), N = partial offload
+ACESTEP_N_GPU_LAYERS=-1
+```
+
+### Real-World VRAM Reference (RTX 3090 / 24GB)
+
+These are measured values using the full **acestep-5Hz-lm-4B** model:
+
+| Configuration | Peak VRAM | Notes |
+|---------------|-----------|-------|
+| No quantization (BF16 DiT + vLLM) | ~22.2 GB | Full quality, full speed |
+| INT4 DiT only | ~19.8 GB | Minimal quality impact |
+| INT4 DiT + Q4_K_M LM | ~15.6 GB | Fits 16GB GPUs with headroom |
+| INT8 DiT + Q8_0 LM | ~17 GB | Best quality/VRAM balance |
+
+> **Note:** GGUF-based LM inference disables CFG (classifier-free guidance) automatically to maintain reasonable generation speed. This has minimal impact on output quality, especially when using Thinking mode.
+
+---
+
 ## Installation & Usage
 
 *(Assuming basic Python/CUDA knowledge and a suitable Windows GPU environment)*
