@@ -26,6 +26,7 @@ import torch
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from acestep.core.generation.jkass_solvers import jkass_quality_step, jkass_fast_step
+from acestep.core.generation.stork_solver import stork2_step, stork4_step
 
 Tensor = torch.Tensor
 State = Dict[str, Any]
@@ -196,6 +197,8 @@ SOLVERS = {
     "rk4": rk4_step,
     "jkass_quality": jkass_quality_step,
     "jkass_fast": jkass_fast_step,
+    "stork2": stork2_step,
+    "stork4": stork4_step,
 }
 
 # Metadata for each solver
@@ -208,6 +211,8 @@ SOLVER_INFO = {
     "rk4":   {"name": "RK4",         "order": 4, "nfe": 4, "needs_model_fn": True},
     "jkass_quality": {"name": "JKASS Quality", "order": 2, "nfe": 2, "needs_model_fn": True},
     "jkass_fast":    {"name": "JKASS Fast",    "order": 1, "nfe": 1, "needs_model_fn": False},
+    "stork2": {"name": "STORK 2",    "order": 2, "nfe": 1, "needs_model_fn": False},
+    "stork4": {"name": "STORK 4",    "order": 4, "nfe": 1, "needs_model_fn": False},
 }
 
 # All valid solver names (for validation)
