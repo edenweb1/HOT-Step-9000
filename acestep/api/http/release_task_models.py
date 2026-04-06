@@ -112,7 +112,7 @@ class GenerateMusicRequest(BaseModel):
 
     shift: float = Field(
         default=3.0,
-        description="Timestep shift factor (range 1.0~5.0, default 3.0). Only effective for base models, not turbo models.",
+        description="Timestep shift factor (1.0~5.0, default 3.0). Set to -1 for auto/dynamic shift based on duration and step count. Only effective for base models.",
     )
     timesteps: Optional[str] = Field(
         default=None,

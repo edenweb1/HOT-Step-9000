@@ -40,6 +40,52 @@ def _apply_shift(timesteps: List[float], shift: float) -> List[float]:
 
 
 # ---------------------------------------------------------------------------
+# Dynamic shift — auto-adjusts shift based on content properties
+# ---------------------------------------------------------------------------
+
+def compute_dynamic_shift(
+    base_shift: float = 3.0,
+    audio_duration: float = 60.0,
+    num_steps: int = 30,
+) -> float:
+    """Compute an adaptive shift value based on generation context.
+
+    Longer songs need more structural steps (higher shift), and fewer
+    diffusion steps benefit from higher shift to concentrate on structure.
+    Calibrated so that ``base_shift=3.0, duration=60s, steps=30`` returns
+    exactly 3.0 — the current default for base models.
+
+    The formula applies two multiplicative factors clamped to [0.8, 1.4]:
+
+    **Duration factor** — ``1.0 + 0.15 * ((duration - 60) / 60)``
+        Songs under 60 s get a slight shift decrease (more detail focus),
+        songs over 60 s get a shift increase (more structural focus).
+
+    **Step factor** — ``1.0 + 0.1 * ((30 - steps) / 30)``
+        Fewer than 30 steps → higher shift (concentrate on structure).
+        More than 30 steps → lower shift (budget allows detail).
+
+    Args:
+        base_shift: Starting shift value (typically 1.0–5.0).
+        audio_duration: Target audio length in seconds.
+        num_steps: Number of diffusion steps.
+
+    Returns:
+        Adjusted shift value, clamped to [1.0, 6.0].
+    """
+    # Duration factor: longer → more structural emphasis
+    dur_factor = 1.0 + 0.15 * ((audio_duration - 60.0) / 60.0)
+    dur_factor = max(0.8, min(1.4, dur_factor))
+
+    # Step factor: fewer steps → concentrate on structure
+    step_factor = 1.0 + 0.1 * ((30.0 - num_steps) / 30.0)
+    step_factor = max(0.8, min(1.4, step_factor))
+
+    adjusted = base_shift * dur_factor * step_factor
+    return max(1.0, min(6.0, adjusted))
+
+
+# ---------------------------------------------------------------------------
 # Schedule functions
 # ---------------------------------------------------------------------------
 
@@ -248,6 +294,10 @@ SCHEDULER_INFO = {
     "linear_quadratic": {"name": "Linear-Quadratic",     "description": "Linear start, quadratic finish"},
     "composite":        {"name": "Composite",            "description": "Two-stage: different schedulers for structure vs detail"},
 }
+
+# Dynamic shift is not a scheduler, but a shift computation mode.
+# It is invoked by callers when shift == -1 (auto mode).
+# See compute_dynamic_shift() above.
 
 VALID_SCHEDULERS = set(SCHEDULERS.keys())
 

@@ -308,6 +308,20 @@ class GenerateMusicMixin:
             if vram_error is not None:
                 return vram_error
 
+            # Dynamic shift: when shift == -1, auto-compute based on duration/steps
+            effective_shift = shift
+            if shift < 0:
+                from acestep.core.generation.schedulers import compute_dynamic_shift
+                effective_shift = compute_dynamic_shift(
+                    base_shift=3.0,
+                    audio_duration=audio_duration or 60.0,
+                    num_steps=inference_steps,
+                )
+                logger.info(
+                    f"[generate_music] Dynamic shift: duration={audio_duration or 60.0:.0f}s, "
+                    f"steps={inference_steps} → shift={effective_shift:.3f}"
+                )
+
             service_run = self._run_generate_music_service_with_progress(
                 progress=progress,
                 actual_batch_size=actual_batch_size,
@@ -323,7 +337,7 @@ class GenerateMusicMixin:
                 guidance_mode=guidance_mode if guidance_mode else ("adg" if use_adg else "apg"),
                 cfg_interval_start=cfg_interval_start,
                 cfg_interval_end=cfg_interval_end,
-                shift=shift,
+                shift=effective_shift,
                 infer_method=infer_method,
                 use_pag=use_pag,
                 pag_start=pag_start,
