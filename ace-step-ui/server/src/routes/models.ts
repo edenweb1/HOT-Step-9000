@@ -306,21 +306,25 @@ router.get('/gguf-status/:model', async (req: any, res: Response) => {
     }
 });
 
-// POST /api/models/convert-gguf - Convert model to GGUF with streaming progress (SSE)
+// GET /api/models/convert-gguf - Convert model to GGUF with streaming progress (SSE)
+// Uses GET so EventSource can be used from the loading screen (file:// origin)
 // No auth — called during loading screen
-router.post('/convert-gguf', async (req: any, res: Response) => {
-    console.log('[GGUF Convert] Request received:', JSON.stringify(req.body));
-    const { model, quant, convertAll } = req.body;
+router.get('/convert-gguf', async (req: any, res: Response) => {
+    const model = req.query.model as string;
+    const quant = req.query.quant as string;
+    const convertAll = req.query.convertAll === 'true';
+    console.log(`[GGUF Convert] Request: model=${model}, quant=${quant}, convertAll=${convertAll}`);
     if (!model || !quant) {
-        res.status(400).json({ error: 'model and quant required' });
+        res.status(400).json({ error: 'model and quant query params required' });
         return;
     }
 
-    // Set SSE headers
+    // Set SSE headers + CORS for EventSource from file:// origins
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.flushHeaders();
 
     const sendEvent = (data: string, event?: string) => {

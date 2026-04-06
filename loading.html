@@ -671,41 +671,38 @@
                 ggufProgressPanel.scrollTop = ggufProgressPanel.scrollHeight;
             }
 
-            try {
-                const resp = await fetch('http://localhost:3001/api/models/convert-gguf', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, quant, convertAll: ggufConvertAll.checked }),
-                });
+            const params = new URLSearchParams({ model, quant, convertAll: ggufConvertAll.checked.toString() });
+            const eventSource = new EventSource(`http://localhost:3001/api/models/convert-gguf?${params}`);
 
-                const reader = resp.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
+            eventSource.onmessage = (e) => {
+                appendLog(e.data);
+            };
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    // Parse SSE events
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();  // Keep incomplete line
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            appendLog(line.slice(6));
-                        }
-                    }
-                }
-                // Process remaining buffer
-                if (buffer.startsWith('data: ')) {
-                    appendLog(buffer.slice(6));
-                }
-            } catch (e) {
-                appendLog(`❌ Connection error: ${e.message}`);
-            }
+            eventSource.addEventListener('done', (e) => {
+                appendLog(e.data);
+                eventSource.close();
+                isConverting = false;
+                checkGGUFStatus();
+                updateConvertButtonState();
+            });
 
-            isConverting = false;
-            await checkGGUFStatus();
-            updateConvertButtonState();
+            eventSource.addEventListener('error', (e) => {
+                if (e.data) appendLog(e.data);
+                eventSource.close();
+                isConverting = false;
+                checkGGUFStatus();
+                updateConvertButtonState();
+            });
+
+            eventSource.onerror = () => {
+                // EventSource auto-reconnect fires this on close too
+                if (!isConverting) return;
+                appendLog('❌ Connection lost');
+                eventSource.close();
+                isConverting = false;
+                checkGGUFStatus();
+                updateConvertButtonState();
+            };
         });
 
         // Set Redmond Mode toggle from saved config
