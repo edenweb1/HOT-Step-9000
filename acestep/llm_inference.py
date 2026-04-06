@@ -719,7 +719,7 @@ class LLMHandler:
             self.llm = Llama(
                 model_path=gguf_path,
                 n_gpu_layers=n_gpu_layers,
-                n_ctx=4096,
+                n_ctx=16384,  # ACE-Step music tokens can be long; model supports 40960
                 verbose=False,
                 logits_all=False,  # Only need last-token logits
             )
