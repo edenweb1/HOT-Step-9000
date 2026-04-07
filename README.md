@@ -58,6 +58,47 @@ HOT-Step 9000 sits on top of the original ACE-Step backend but introduces a mass
 
 ---
 
+## Supported Models
+
+HOT-Step 9000 supports both the standard **1.5B DiT** models and the newer **4B XL DiT** models from [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5). Models are auto-downloaded on first use, or can be pre-fetched via `install.bat` or the model downloader CLI.
+
+### Standard Models (1.5B DiT)
+
+| Model | Description | Steps |
+|-------|-------------|-------|
+| `acestep-v15-turbo` | Default. Fast generation with shift scheduling. | 8 |
+| `acestep-v15-turbo-shift3` | Turbo variant with shift=3 (recommended default). | 8 |
+| `acestep-v15-sft` | SFT-tuned — higher quality, more steps required. | 40+ |
+| `acestep-v15-base` | Base model. Supports extract/lego/complete tasks. | 40+ |
+
+### XL Models (4B DiT)
+
+The XL variants are **twice the parameter count** (4B vs 1.5B) of the standard models, producing richer, more detailed audio. They require **≥12 GB VRAM** (16+ GB recommended).
+
+| Model | Description | Steps | Size |
+|-------|-------------|-------|------|
+| `acestep-v15-xl-turbo` | Fastest XL variant — distilled for low-step generation. | 8 | ~10 GB |
+| `acestep-v15-xl-sft` | XL SFT — highest quality XL variant. | 40+ | ~10 GB |
+| `acestep-v15-xl-base` | XL base model. | 40+ | ~10 GB |
+| `acestep-v15-merge-sft-turbo-xl-ta-0.5` | Community SFT+Turbo merge at α=0.5 by [jeankassio](https://huggingface.co/jeankassio). Blends SFT quality with Turbo speed. | 15–30 | ~20 GB |
+
+> **Note:** XL models do not currently support adapter (LoRA/LoKr) loading due to their different architecture. Multi-batch generation (`batch_size > 1`) is also not recommended for XL models at this time.
+
+**Download via CLI:**
+```bash
+python -m acestep.model_downloader --model acestep-v15-xl-turbo --skip-main
+```
+
+### Language Models
+
+| Model | Size | Notes |
+|-------|------|-------|
+| `acestep-5Hz-lm-1.7B` | ~3.4 GB | Default. Included in main download. |
+| `acestep-5Hz-lm-0.6B` | ~1.2 GB | Lighter, faster. |
+| `acestep-5Hz-lm-4B` | ~8 GB | Highest quality. GGUF quantization recommended. |
+
+---
+
 ## VRAM Management
 
 HOT-Step 9000 includes built-in tools to reduce GPU memory usage, making it accessible on hardware with as little as **16GB VRAM** — without sacrificing the full 4B parameter language model or advanced features like LoRA adapters.
@@ -152,6 +193,7 @@ HOT-Step 9000 exists thanks to the incredible open-source AI audio community:
 - Core models and initial application framework by the **[ACE-Step 1.5 Team](https://github.com/ace-step/ACE-Step-1.5)**.
 - Windows compatibility layer and upstream scaffolding by **[sdbds](https://github.com/sdbds/ACE-Step-1.5-for-windows)**.
 - DPO quality refinement adapter (Redmond Mode) by **[artificialguybr](https://huggingface.co/artificialguybr)**.
+- XL SFT+Turbo community merge model by **[jeankassio](https://huggingface.co/jeankassio)**.
 - UI Overhaul, advanced tooling, and new features by **scragnog**.
 
 ## License
