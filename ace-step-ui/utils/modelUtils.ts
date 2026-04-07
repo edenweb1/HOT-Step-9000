@@ -18,6 +18,8 @@ export const getModelDisplayName = (modelId: string): string => {
     'acestep-v15-xl-base': 'XL-B',
     'acestep-v15-xl-sft': 'XL-S',
     'acestep-v15-xl-turbo': 'XL-T',
+    // Community merge models
+    'acestep-v15-merge-sft-turbo-xl-ta-0.5': 'XL-M',
   };
   return mapping[modelId] || modelId;
 };

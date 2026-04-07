@@ -325,6 +325,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
       { id: 'acestep-v15-xl-base', name: 'acestep-v15-xl-base' },
       { id: 'acestep-v15-xl-sft', name: 'acestep-v15-xl-sft' },
       { id: 'acestep-v15-xl-turbo', name: 'acestep-v15-xl-turbo' },
+      { id: 'acestep-v15-merge-sft-turbo-xl-ta-0.5', name: 'acestep-v15-merge-sft-turbo-xl-ta-0.5' },
     ];
   }, [fetchedModels]);
 

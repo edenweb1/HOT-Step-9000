@@ -22,6 +22,7 @@ const getModelDisplayName = (modelId?: string): string => {
         'acestep-v15-xl-base': 'XL-B',
         'acestep-v15-xl-sft': 'XL-S',
         'acestep-v15-xl-turbo': 'XL-T',
+        'acestep-v15-merge-sft-turbo-xl-ta-0.5': 'XL-M',
     };
     return mapping[modelId] || 'v1.5';
 };
