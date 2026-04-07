@@ -105,6 +105,23 @@ def is_rocm_available() -> bool:
         return False
 
 
+def cuda_supports_bfloat16(device_index: int = 0) -> bool:
+    """Return whether a CUDA device supports native bfloat16 kernels.
+
+    True for Ampere+ GPUs (compute capability >= 8.0).  Used to decide
+    whether SDPA is safe (bf16) or needs eager fallback (fp16 overflow).
+    """
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return False
+        major, _ = torch.cuda.get_device_capability(device_index)
+        return major >= 8
+    except Exception:
+        return False
+
+
 # ===========================================================================
 # Empirical VRAM measurements (GB) -- model weights only, bf16 precision
 # These values should be calibrated using scripts/profile_vram.py

@@ -1,15 +1,79 @@
 """Checkpoint and model-loading helpers for service initialization."""
 
 import gc
+import importlib
 import os
 from typing import Optional
 
 import torch
 from loguru import logger
 
+from acestep import gpu_config
+
 
 class InitServiceLoaderMixin:
     """Helpers for heavy model component loading."""
+
+    def _cuda_supports_bool_argsort(self) -> bool:
+        """Return whether CUDA argsort supports bool tensors on the active device."""
+        if not torch.cuda.is_available():
+            return True
+        target_device = str(getattr(self, "device", "cuda"))
+        if not target_device.startswith("cuda"):
+            target_device = "cuda"
+        try:
+            mask_cat = torch.tensor([[True, False]], device=target_device)
+            _ = mask_cat.argsort(dim=1, descending=True, stable=True)
+            return True
+        except RuntimeError as exc:
+            logger.debug(
+                "[_cuda_supports_bool_argsort] Treating CUDA bool argsort probe failure as unsupported: {}",
+                exc,
+            )
+            return False
+
+    def _apply_cuda_bool_argsort_workaround(self) -> None:
+        """Patch dynamic model helpers when bool argsort is unsupported on CUDA."""
+        target_device = str(getattr(self, "device", ""))
+        if not target_device.startswith("cuda"):
+            return
+        if self._cuda_supports_bool_argsort():
+            return
+
+        model_module_name = getattr(self.model.__class__, "__module__", "")
+        if not model_module_name:
+            return
+
+        try:
+            model_module = importlib.import_module(model_module_name)
+        except Exception as exc:
+            logger.warning(
+                "[initialize_service] Failed to import model module for CUDA bool-argsort workaround: {}",
+                exc,
+            )
+            return
+
+        original_pack_sequences = getattr(model_module, "pack_sequences", None)
+        if original_pack_sequences is None:
+            return
+        if getattr(original_pack_sequences, "__acestep_bool_argsort_patched__", False):
+            return
+
+        def _pack_sequences_cuda_compat(hidden1, hidden2, mask1, mask2):
+            # ``pack_sequences`` only needs sortable integer-like masks here; keep
+            # truthy/falsey semantics while avoiding CUDA bool argsort failures.
+            if isinstance(mask1, torch.Tensor) and mask1.is_cuda and mask1.dtype == torch.bool:
+                mask1 = mask1.to(torch.int32)
+            if isinstance(mask2, torch.Tensor) and mask2.is_cuda and mask2.dtype == torch.bool:
+                mask2 = mask2.to(torch.int32)
+            return original_pack_sequences(hidden1, hidden2, mask1, mask2)
+
+        _pack_sequences_cuda_compat.__acestep_bool_argsort_patched__ = True
+        setattr(model_module, "pack_sequences", _pack_sequences_cuda_compat)
+        logger.warning(
+            "[initialize_service] Applied CUDA bool-argsort workaround to {}.pack_sequences",
+            model_module_name,
+        )
 
     def _load_main_model_from_checkpoint(
         self,
@@ -32,10 +96,27 @@ class InitServiceLoaderMixin:
                 self.model = None
             gc.collect()
             torch.cuda.empty_cache()
-            torch.cuda.synchronize()
+            try:
+                torch.cuda.synchronize()
+            except RuntimeError as exc:
+                logger.warning(
+                    "[initialize_service] cuda.synchronize() failed during pre-load cleanup: {}. "
+                    "Continuing with fresh load attempt.",
+                    exc,
+                )
 
         if use_flash_attention and self.is_flash_attention_available(device):
             attn_implementation = "flash_attention_2"
+        elif device == "cuda" and not gpu_config.cuda_supports_bfloat16():
+            # Pre-Ampere GPUs (compute capability < 8.0) run in float16 which
+            # can overflow in SDPA's fused softmax with longer sequences,
+            # producing NaN/Inf latents.  Eager attention upcasts to float32
+            # for softmax, avoiding the overflow.
+            logger.info(
+                "[initialize_service] Pre-Ampere CUDA detected: using eager "
+                "attention for float16 numerical stability."
+            )
+            attn_implementation = "eager"
         else:
             if use_flash_attention:
                 logger.warning(
@@ -74,6 +155,8 @@ class InitServiceLoaderMixin:
 
         self.model.config._attn_implementation = attn_implementation
         self.config = self.model.config
+        self._sync_alignment_config()
+        self._apply_cuda_bool_argsort_workaround()
 
         # Merged models (SFT+Turbo weight averages) are NOT pure distillation
         # checkpoints — they can benefit from higher step counts, guidance, and
