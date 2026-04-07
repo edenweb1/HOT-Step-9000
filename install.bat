@@ -266,11 +266,13 @@ echo    Size: ~10 GB each
 echo.
 echo    1) XL Turbo only  (fastest XL variant, 8 steps)
 echo    2) All three XL models  (base + sft + turbo)
-echo    3) Skip
+echo    3) XL SFT+Turbo Merge  (community merge by jeankassio, ~20 GB)
+echo       Blends SFT quality with Turbo speed at alpha 0.5
+echo    4) Skip
 echo.
 
-set /p XL_CHOICE="  Your choice [1/2/3] (default=3): "
-if "%XL_CHOICE%"=="" set XL_CHOICE=3
+set /p XL_CHOICE="  Your choice [1/2/3/4] (default=4): "
+if "%XL_CHOICE%"=="" set XL_CHOICE=4
 
 if "%XL_CHOICE%"=="1" (
     echo.
@@ -305,6 +307,28 @@ if "%XL_CHOICE%"=="1" (
     )
     echo.
     echo  XL model downloads complete.
+) else if "%XL_CHOICE%"=="3" (
+    echo.
+    echo  The merge model needs supporting files from XL SFT.
+    echo  Checking if XL SFT is available...
+    if not exist "checkpoints\acestep-v15-xl-sft\config.json" (
+        echo  XL SFT not found. Downloading donor checkpoint first...
+        python -m acestep.model_downloader --model acestep-v15-xl-sft --skip-main
+        if errorlevel 1 (
+            echo  WARNING: XL SFT download had errors. Merge setup may be incomplete.
+        )
+    ) else (
+        echo  XL SFT found.
+    )
+    echo.
+    echo  Downloading XL SFT+Turbo Merge model (~20 GB)...
+    python -m acestep.model_downloader --model acestep-v15-merge-sft-turbo-xl-ta-0.5 --skip-main
+    if errorlevel 1 (
+        echo  WARNING: Merge model download had errors. You can retry later with:
+        echo    python -m acestep.model_downloader --model acestep-v15-merge-sft-turbo-xl-ta-0.5 --skip-main
+    ) else (
+        echo  XL SFT+Turbo Merge model downloaded successfully.
+    )
 ) else (
     echo  Skipping XL models. They will auto-download on first use if selected,
     echo  or you can download later with:

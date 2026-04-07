@@ -40,6 +40,8 @@ _CHECKPOINT_TO_VARIANT: Dict[str, str] = {
     "acestep-v15-xl-base": "xl_base",
     "acestep-v15-xl-sft": "xl_sft",
     "acestep-v15-xl-turbo": "xl_turbo",
+    # Community merge models (use same model code as their base architecture)
+    "acestep-v15-merge-sft-turbo-xl-ta-0.5": "xl_sft",
 }
 
 # Weight file extensions that transformers/diffusers look for when loading models
@@ -333,6 +335,8 @@ SUBMODEL_REGISTRY: Dict[str, str] = {
     "acestep-v15-xl-base": "ACE-Step/acestep-v15-xl-base",
     "acestep-v15-xl-sft": "ACE-Step/acestep-v15-xl-sft",
     "acestep-v15-xl-turbo": "ACE-Step/acestep-v15-xl-turbo",
+    # Community merge models — single safetensors, need supporting files from donor
+    "acestep-v15-merge-sft-turbo-xl-ta-0.5": "jeankassio/acestep_v1.5_merge_sft_turbo_xl",
 }
 
 # Components that come from the main model repo (ACE-Step/Ace-Step1.5)
@@ -351,6 +355,75 @@ DEFAULT_LM_MODEL = "acestep-5Hz-lm-1.7B"
 # because the Serveurperso GGUFs used custom architecture tags incompatible with llama-cpp-python.
 # Users convert safetensors to GGUF using the loading screen or CLI:
 #   python -m acestep.tools.gguf_converter <model_name> --quant Q8_0
+
+# =============================================================================
+# Community Merge Models
+# =============================================================================
+# Models from community repos that ship only weights (single safetensors file).
+# They require supporting files (config.json, model code, silence_latent.pt)
+# to be copied from a "donor" checkpoint that shares the same architecture.
+#   key   = local checkpoint name
+#   value = dict with:
+#     donor  = donor checkpoint name (must exist in checkpoints dir)
+#     rename = map of downloaded filenames -> required filename
+_COMMUNITY_MERGE_MODELS: Dict[str, Dict] = {
+    "acestep-v15-merge-sft-turbo-xl-ta-0.5": {
+        "donor": "acestep-v15-xl-sft",
+        "rename": {
+            "acestep_v1.5_merge_sft_turbo_xl_ta_0.5.safetensors": "model.safetensors",
+        },
+    },
+}
+
+
+def _setup_community_merge(model_name: str, checkpoints_dir: Path) -> None:
+    """Post-download setup for community merge models.
+
+    1. Rename downloaded safetensors file to model.safetensors
+    2. Copy supporting files (config.json, silence_latent.pt) from donor
+    3. Remove multi-shard index if present (single-file models don't need it)
+    """
+    info = _COMMUNITY_MERGE_MODELS.get(model_name)
+    if not info:
+        return
+
+    model_dir = checkpoints_dir / model_name
+    donor_dir = checkpoints_dir / info["donor"]
+
+    # Step 1: Rename downloaded weight file
+    for src_name, dst_name in info.get("rename", {}).items():
+        src_path = model_dir / src_name
+        dst_path = model_dir / dst_name
+        if src_path.exists() and not dst_path.exists():
+            src_path.rename(dst_path)
+            logger.info(f"[Community Merge] Renamed {src_name} -> {dst_name}")
+        elif dst_path.exists():
+            logger.debug(f"[Community Merge] {dst_name} already exists, skipping rename")
+
+    # Step 2: Remove multi-shard index (single-file model doesn't need it)
+    index_file = model_dir / "model.safetensors.index.json"
+    if index_file.exists():
+        index_file.unlink()
+        logger.info("[Community Merge] Removed multi-shard index (single-file model)")
+
+    # Step 3: Copy supporting files from donor checkpoint
+    if not donor_dir.exists():
+        logger.warning(
+            f"[Community Merge] Donor checkpoint '{info['donor']}' not found at {donor_dir}. "
+            f"Supporting files must be set up manually or download the donor first."
+        )
+        return
+
+    supporting_files = ["config.json", "silence_latent.pt"]
+    for fname in supporting_files:
+        src = donor_dir / fname
+        dst = model_dir / fname
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
+            logger.info(f"[Community Merge] Copied {fname} from {info['donor']}")
+
+    logger.info(f"[Community Merge] Setup complete for {model_name}")
+
 
 
 def get_project_root() -> Path:
@@ -553,11 +626,15 @@ def download_submodel(
 
     # Use smart download with automatic fallback
     success, msg = _smart_download(repo_id, model_path, token, prefer_source)
-    if success and model_name in _CHECKPOINT_TO_VARIANT:
-        # Sync model code files after successful download
-        synced = _sync_model_code_files(model_name, checkpoints_dir)
-        if synced:
-            logger.info(f"[Model Download] Synced code files for {model_name}: {synced}")
+    if success:
+        # Community merge models need supporting files from their donor checkpoint
+        if model_name in _COMMUNITY_MERGE_MODELS:
+            _setup_community_merge(model_name, checkpoints_dir)
+        if model_name in _CHECKPOINT_TO_VARIANT:
+            # Sync model code files after successful download
+            synced = _sync_model_code_files(model_name, checkpoints_dir)
+            if synced:
+                logger.info(f"[Model Download] Synced code files for {model_name}: {synced}")
     return success, msg
 
 
