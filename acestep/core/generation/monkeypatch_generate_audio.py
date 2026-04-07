@@ -115,6 +115,20 @@ def apply_generate_audio_monkeypatch(model) -> bool:
         )
         return False
 
+    # XL models have a different encoder/decoder architecture (split hidden sizes,
+    # separate encoder_config) and their own generate_audio implementation.
+    # The 2B base model's patched generate_audio is NOT compatible with XL.
+    config = getattr(model, "config", None)
+    _enc_hs = getattr(config, "encoder_hidden_size", None)
+    _dec_hs = getattr(config, "hidden_size", None)
+    if _enc_hs is not None and _dec_hs is not None and _enc_hs != _dec_hs:
+        logger.info(
+            f"[monkeypatch] Skipping XL model ({class_name}) — "
+            f"encoder_hidden_size={_enc_hs} != hidden_size={_dec_hs}, "
+            "XL has its own generate_audio"
+        )
+        return False
+
     # Import the patched generate_audio from our local base model code.
     # This version has: guidance_mode, get_solver(), get_guidance(), PAG, etc.
     from acestep.models.base.modeling_acestep_v15_base import (
