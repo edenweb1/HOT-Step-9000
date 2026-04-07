@@ -87,6 +87,12 @@ echo.
 echo  [4/6] Installing Python dependencies...
 echo  This may take several minutes on first run.
 echo.
+
+REM Ensure UV resolves PyTorch from the CUDA wheel index, not CPU-only PyPI.
+REM Without this, `uv pip install` ignores [tool.uv.sources] and pulls CPU-only torch.
+set "UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu130"
+set "UV_INDEX_STRATEGY=unsafe-best-match"
+
 uv pip install -e .
 if errorlevel 1 (
     echo.
