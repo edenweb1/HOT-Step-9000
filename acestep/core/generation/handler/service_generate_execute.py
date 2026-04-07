@@ -270,6 +270,33 @@ class ServiceGenerateExecuteMixin:
                         if cb is not None:
                             generate_kwargs["on_step_callback"] = cb
                             logger.info("[service_generate] Temporal adapter schedule active")
+
+                    # === DIAGNOSTIC: Log tensor shapes before generate_audio ===
+                    _diag_keys = [
+                        "text_hidden_states", "text_attention_mask",
+                        "lyric_hidden_states", "lyric_attention_mask",
+                        "refer_audio_acoustic_hidden_states_packed", "refer_audio_order_mask",
+                        "src_latents", "chunk_masks", "is_covers", "silence_latent",
+                        "precomputed_lm_hints_25Hz",
+                        "non_cover_text_hidden_states", "non_cover_text_attention_mask",
+                    ]
+                    for _dk in _diag_keys:
+                        _dv = generate_kwargs.get(_dk)
+                        if _dv is not None and hasattr(_dv, "shape"):
+                            logger.debug("[DIAG-SHAPES] {}: shape={}, dtype={}", _dk, tuple(_dv.shape), _dv.dtype)
+                        elif _dv is not None:
+                            logger.debug("[DIAG-SHAPES] {}: type={}", _dk, type(_dv).__name__)
+                    # Log model config for XL detection
+                    _mcfg = getattr(self.model, "config", None)
+                    if _mcfg:
+                        logger.debug(
+                            "[DIAG-SHAPES] model: hidden_size={}, encoder_hidden_size={}, is_turbo={}",
+                            getattr(_mcfg, "hidden_size", "?"),
+                            getattr(_mcfg, "encoder_hidden_size", "N/A"),
+                            getattr(_mcfg, "is_turbo", "?"),
+                        )
+                    # ==========================================================
+
                     outputs = self.model.generate_audio(**generate_kwargs)
 
         return outputs, encoder_hidden_states, encoder_attention_mask, context_latents
