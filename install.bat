@@ -36,6 +36,37 @@ if errorlevel 1 (
     exit /b 1
 )
 for /f "tokens=*" %%v in ('python --version 2^>^&1') do echo  Found: %%v
+
+REM Validate Python version is 3.11 or 3.12 (required by this project)
+for /f "tokens=2 delims= " %%a in ('python --version 2^>^&1') do set "PY_FULL_VER=%%a"
+for /f "tokens=1,2 delims=." %%a in ("%PY_FULL_VER%") do (
+    set "PY_MAJOR=%%a"
+    set "PY_MINOR=%%b"
+)
+if not "%PY_MAJOR%"=="3" (
+    echo.
+    echo  ERROR: Python 3 is required. Detected: Python %PY_FULL_VER%
+    echo  Please install Python 3.11 or 3.12 from https://python.org
+    pause
+    exit /b 1
+)
+if %PY_MINOR% LSS 11 (
+    echo.
+    echo  ERROR: Python 3.11 or 3.12 is required. Detected: Python %PY_FULL_VER%
+    echo  Python 3.10 and older are not supported ^(PyTorch CUDA wheels
+    echo  and torchao require 3.11+^).
+    echo  Please install Python 3.11 or 3.12 from https://python.org
+    pause
+    exit /b 1
+)
+if %PY_MINOR% GEQ 13 (
+    echo.
+    echo  WARNING: Python %PY_FULL_VER% detected. This project is tested with
+    echo  Python 3.11 and 3.12. Python 3.13+ may have compatibility issues.
+    echo  If you encounter errors, please install Python 3.12 instead.
+    echo.
+    timeout /t 5 /nobreak >nul
+)
 echo.
 
 :: -------------------------------------------------------------------
@@ -104,6 +135,26 @@ if errorlevel 1 (
         pause
         exit /b 1
     )
+)
+
+REM Verify PyTorch has CUDA support — if UV cached a CPU-only resolution,
+REM force-reinstall torch from the CUDA index.
+echo  Verifying PyTorch CUDA support...
+python -c "import torch; exit(0 if torch.cuda.is_available() or hasattr(torch.version,'hip') else 1)" >nul 2>&1
+if errorlevel 1 (
+    echo  WARNING: CPU-only PyTorch detected. Reinstalling with CUDA support...
+    uv pip install --force-reinstall --no-cache torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu130
+    if errorlevel 1 (
+        echo  ERROR: Failed to install CUDA PyTorch. Check your internet connection.
+        echo  You can try manually:
+        echo    .venv\Scripts\activate
+        echo    uv pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cu130
+        pause
+        exit /b 1
+    )
+    echo  CUDA PyTorch installed successfully.
+) else (
+    echo  PyTorch CUDA support confirmed.
 )
 echo.
 echo  Python dependencies installed.
